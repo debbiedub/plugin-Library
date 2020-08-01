@@ -48,6 +48,7 @@ import freenet.library.util.concurrent.ObjectProcessor;
 import freenet.library.util.event.CountingSweeper;
 import freenet.library.util.event.TrackingSweeper;
 import freenet.library.util.exec.BaseCompositeProgress;
+import freenet.library.util.exec.Progress;
 import freenet.library.util.exec.ProgressParts;
 import freenet.library.util.exec.TaskAbortException;
 import freenet.library.util.exec.TaskCompleteException;
@@ -553,7 +554,7 @@ public class SkeletonBTreeMap<K, V> extends BTreeMap<K, V> implements SkeletonMa
 
 		final Queue<SkeletonNode> nodequeue = new PriorityQueue<SkeletonNode>();
 
-		Map<PullTask<SkeletonNode>, ProgressTracker<SkeletonNode, ?>> ids = null;
+		Map<PullTask<SkeletonNode>, ProgressTracker<SkeletonNode, ? extends Progress>> ids = null;
 		ProgressTracker<SkeletonNode, ?> ntracker = null;;
 
 		if (nsrl instanceof Serialiser.Trackable) {
