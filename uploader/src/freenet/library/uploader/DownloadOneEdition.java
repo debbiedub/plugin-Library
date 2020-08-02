@@ -1,14 +1,6 @@
 /*
  */
 
-/*
- * Log levels used:
- * None/Warning: Serious events and small problems.
- * FINE: Stats for fetches and overview of contents of fetched keys. Minor events.
- * FINER: Queue additions, length, ETA, rotations.
- * FINEST: Really minor events.
- */
-
 package freenet.library.uploader;
 
 import java.io.File;
@@ -62,6 +54,12 @@ import net.pterodactylus.fcp.Verbosity;
  *
  * If a non-downloadable part is encountered upload it from the saved parts or
  * attempt to download later.
+ *
+ * Log levels used:
+ * None/Warning: Serious events and small problems.
+ * FINE: Stats for fetches and overview of contents of fetched keys. Minor events.
+ * FINER: Queue additions, length, ETA, rotations.
+ * FINEST: Really minor events.
  */
 class DownloadOneEdition {
 	/** Logger. */
@@ -168,6 +166,13 @@ class DownloadOneEdition {
 			nextFetchAttempt = new Date(new Date().getTime() + timeToNextFetchAttempt);
 		}
 
+		/**
+		 * Calculate the time until the next attempt to fetch this page.
+		 * 
+		 * The timeToNextFetchAttempt (tTNFA) is adjusted to a random number between
+		 * tTNFA / 2 and tTNFA * 2.5. This means that for each failing attempt, the time
+		 * between attempts is increased (on average).
+		 */
 		void fetchFailed() {
 			timeToNextFetchAttempt += 1 + 2 * random.nextInt(Long.valueOf(timeToNextFetchAttempt).intValue()) - timeToNextFetchAttempt / 2;
 			calculateNextFetchAttempt();
@@ -211,7 +216,7 @@ class DownloadOneEdition {
 				}
 				logger.finest("Skipped page deferred until " + page.nextFetchAttempt);
 				offer(page); // Ignored impossible false status
-			} while (maxLaps-- > 0);
+			} while (--maxLaps > 0);
 			logger.finest("Did not find any not deferred page");
 			return null;
 		}
@@ -1001,6 +1006,12 @@ class DownloadOneEdition {
 		}
 	}
 
+	/**
+	 * Queue pages to process from the Queues indefinitely.
+	 *
+	 * By scheduling a new queuing of pages directly after the processing of
+	 * pages any amount of threads will be filled up with processing pages.
+	 */
 	private class QueueQueues implements Runnable {
 
 		private boolean startedFetch = false;
@@ -1015,6 +1026,15 @@ class DownloadOneEdition {
 			return (random.nextLong() >>> 1) % l;
 		}
 
+		/**
+		 * Balance the fetches against the uploads by deciding if we shall upload
+		 * or not. The length of the fetch queues is compared with the length of
+		 * the upload queues considering the relationship between the estimated
+		 * time for a fetch or an upload.
+		 *
+		 * @param ql Upload Queue Length to balance.
+		 * @return <code>true</code> if we shall upload something.
+		 */
 		private boolean shallUpload(int ql) {
 			if (!startedFetch) {
 				return true;
