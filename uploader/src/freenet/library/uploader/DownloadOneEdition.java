@@ -1038,9 +1038,6 @@ class DownloadOneEdition {
 		 * @return <code>true</code> if we shall upload something.
 		 */
 		private boolean shallUpload(int ql) {
-			if (!startedFetch) {
-				return true;
-			}
 			return nextLong(uploadTime.get() * (toFetch.size() + toRefetchUnfetchable.size()) / (1 + ql)
 					/ fetchTime.get()) == 0;
 		}
@@ -1165,22 +1162,24 @@ class DownloadOneEdition {
 		}
 
 		private void queueUpload() {
-			if (morePagesDirectory != null && shallUpload(toRefetchUnfetchable.size())) {
-				final Page page = toRefetchUnfetchable.poll();
-				if (page != null) {
-					FCPexecutors.execute(new Runnable() {
-						@Override
-						public void run() {
-							MeasureTime t = new MeasureTime(uploadTimes);
-							doCopyAndUploadUnfetchable(page);
-							t.done();
-						}
-					});
-					startedUpload = true;
+			if (morePagesDirectory != null) {
+				if (!startedFetch || shallUpload(toRefetchUnfetchable.size())) {
+					final Page page = toRefetchUnfetchable.poll();
+					if (page != null) {
+						FCPexecutors.execute(new Runnable() {
+							@Override
+							public void run() {
+								MeasureTime t = new MeasureTime(uploadTimes);
+								doCopyAndUploadUnfetchable(page);
+								t.done();
+							}
+						});
+						startedUpload = true;
+					}
 				}
 			}
 
-			if (shallUpload(toUploadUnfetchable.size())) {
+			if (!startedFetch || shallUpload(toUploadUnfetchable.size())) {
 				final Page page = toUploadUnfetchable.poll();
 				if (page != null) {
 					FCPexecutors.execute(new Runnable() {
