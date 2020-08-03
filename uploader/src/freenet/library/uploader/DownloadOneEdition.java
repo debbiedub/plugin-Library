@@ -580,7 +580,7 @@ class DownloadOneEdition {
 				cleanUp.remove(page.getFile());
 			}
 			add(toParse, page);
-		} else if (unfetchables.check(page.getURI())) {
+		} else if (unfetchables.remove(page.getURI())) {
 			add(toRefetchUnfetchable, page);
 		} else {
 			add(toFetch, page);
@@ -601,7 +601,7 @@ class DownloadOneEdition {
 
 	private void doParse(Page page) {
 		parse(page);
-		if (unfetchables.check(page.getURI())) {
+		if (unfetchables.remove(page.getURI())) {
 			add(toUploadUnfetchable, page);
 			counterParseFailed++;
 		} else {
@@ -720,7 +720,7 @@ class DownloadOneEdition {
 			for (File f : toRemove) {
 				allFiles.remove(f);
 				try {
-					unfetchables.check(new FreenetURI(f.getName()));
+					unfetchables.remove(new FreenetURI(f.getName()));
 				} catch (MalformedURLException e) {
 					logger.log(Level.WARNING, "File " + f + " strange filename.", e);
 				}
@@ -813,10 +813,12 @@ class DownloadOneEdition {
 			return fromPreviousRun.size();
 		}
 
-		synchronized boolean check(FreenetURI uri) {
-			boolean retval = fromPreviousRun.contains(uri);
-			fromPreviousRun.remove(uri);
-			return retval;
+		/**
+		 * @param uri The uri to remove.
+		 * @return true if the uri was among the unfetchables.
+		 */
+		synchronized boolean remove(FreenetURI uri) {
+			return fromPreviousRun.remove(uri);
 		}
 	}
 
