@@ -540,10 +540,10 @@ class DownloadOneEdition {
 	private boolean doRefetchUnfetchable(Page page) {
 		boolean result = fetch(page);
 		if (result) {
-			add(toParse, page);
+			toParse.offer(page);
 			counterRefetchUnfetchableSuccess++;
 		} else {
-			add(toRefetchUnfetchable, page);
+			toRefetchUnfetchable.offer(page);
 			counterRefetchUnfetchableFailed++;
 		}
 		return result;
@@ -552,10 +552,10 @@ class DownloadOneEdition {
 	private boolean doRefetchToUpload(Page page) {
 		boolean result = fetch(page);
 		if (result) {
-			add(toRefetch, page);
+			toRefetch.offer(page);
 			counterRefetchUploadSuccess++;
 		} else {
-			add(toUploadUnfetchable, page);
+			toUploadUnfetchable.offer(page);
 			counterRefetchUploadFailed++;
 		}
 		return result;
@@ -564,7 +564,7 @@ class DownloadOneEdition {
 	private boolean doRefetch(Page page) {
 		boolean result = fetch(page);
 		if (result) {
-			add(toRefetch, page);
+			toRefetch.offer(page);
 			counterRefetchSuccess++;
 		} else {
 			handleUnfetchable(page);
@@ -579,18 +579,18 @@ class DownloadOneEdition {
 			if (cleanUp != null) {
 				cleanUp.remove(page.getFile());
 			}
-			add(toParse, page);
+			toParse.offer(page);
 		} else if (unfetchables.remove(page.getURI())) {
-			add(toRefetchUnfetchable, page);
+			toRefetchUnfetchable.offer(page);
 		} else {
-			add(toFetch, page);
+			toFetch.offer(page);
 		}
 	}
 
 	private boolean doFetch(Page page) {
 		boolean result = fetch(page);
 		if (result) {
-			add(toParse, page);
+			toParse.offer(page);
 			counterFetchSuccess++;
 		} else {
 			handleUnfetchable(page);
@@ -602,25 +602,25 @@ class DownloadOneEdition {
 	private void doParse(Page page) {
 		parse(page);
 		if (unfetchables.remove(page.getURI())) {
-			add(toUploadUnfetchable, page);
+			toUploadUnfetchable.offer(page);
 			counterParseFailed++;
 		} else {
-			add(toRefetch, page);
+			toRefetch.offer(page);
 			counterParseSuccess++;
 		}
 	}
 
 	private void handleUnfetchable(Page page) {
 		if (page.getFile().exists()) {
-			add(toUploadUnfetchable, page);
+			toUploadUnfetchable.offer(page);
 		} else {
-			add(toRefetchUnfetchable, page);
+			toRefetchUnfetchable.offer(page);
 		}
 	}
 
 	private boolean doUploadUnfetchable(Page page) {
 		boolean result = upload(page);
-		add(toRefetch, page);
+		toRefetch.offer(page);
 		if (result) {
 			counterUploadUnfetchableSuccess++;
 		} else {
@@ -652,10 +652,6 @@ class DownloadOneEdition {
 			logger.log(Level.SEVERE, "Could not copy file " + fromFile + " to " + page.getFile() + ".", se);
 			toRefetchUnfetchable.offer(page);
 		}
-	}
-
-	private void add(RotatingQueue<Page> whereto, Page p) {
-		whereto.offer(p);
 	}
 
 	private class CleanupOldFiles implements Runnable {
