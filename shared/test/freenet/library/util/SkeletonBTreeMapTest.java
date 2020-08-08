@@ -3,13 +3,16 @@
  * http://www.gnu.org/ for further details of the GPL. */
 package freenet.library.util;
 
-import junit.framework.TestCase;
+import org.junit.Before;
+import org.junit.Ignore;
+import org.junit.Test;
 
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.TreeSet;
@@ -26,11 +29,13 @@ import freenet.library.util.exec.TaskAbortException;
 import freenet.library.util.func.Tuples.X2;
 
 import static freenet.library.util.func.Tuples.X2;
+import static org.junit.Assert.*;
 
-public class SkeletonBTreeMapTest extends TestCase {
+public class SkeletonBTreeMapTest {
 
 	SkeletonBTreeMap<String, Integer> skelmap;
-	String oneKey;
+	String lastAddedKey;
+	Set<String> allKeys;
 
 	private static long lastNumber = 0;
 
@@ -103,7 +108,9 @@ public class SkeletonBTreeMapTest extends TestCase {
 
 		@Override
 		public void push(Iterable<PushTask<SkeletonBTreeMap<K, V>.SkeletonNode>> tasks) throws TaskAbortException {
-			throw new TaskAbortException("NIY", new Throwable());
+			for (PushTask<SkeletonBTreeMap<K, V>.SkeletonNode> task : tasks) {
+				push(task);
+			}
 		}
 
 		@Override
@@ -199,21 +206,27 @@ public class SkeletonBTreeMapTest extends TestCase {
 		return rndStr().substring(0,8);
 	}
 
-	protected void setUp() throws TaskAbortException {
+	SkelMapMapSerialiser<String, Integer> lastMapSerialiser;
+
+	@Before
+	public void setUp() throws TaskAbortException {
 		skelmap = new SkeletonBTreeMap<String, Integer>(2);
-		SkelMapMapSerialiser<String, Integer> mapSerialiser = new SkelMapMapSerialiser<String, Integer>();
-		skelmap.setSerialiser(new SkelMapNodeSerialiser<String, Integer>(skelmap, mapSerialiser), mapSerialiser);
+		lastMapSerialiser = new SkelMapMapSerialiser<String, Integer>();
+		skelmap.setSerialiser(new SkelMapNodeSerialiser<String, Integer>(skelmap, lastMapSerialiser), lastMapSerialiser);
 		assertTrue(skelmap.isBare());
+
+		allKeys = new TreeSet<String>();
 	}
 
-	private void add(int count, int laps) throws TaskAbortException {
+	private void add(int laps, int count) throws TaskAbortException {
 		int calculatedSize = skelmap.size();
 		for (int l = 0; l < laps; ++l) {
 			SortedMap<String, Integer> map = new TreeMap<String, Integer>();
 			for (int i = 0; i < count; ++i) {
 				String key = rndKey();
 				map.put(key, i);
-				oneKey = key;
+				allKeys.add(key);
+				lastAddedKey = key;
 			}
 			skelmap.update(map, new TreeSet<String>());
 			calculatedSize += count;
@@ -222,59 +235,111 @@ public class SkeletonBTreeMapTest extends TestCase {
 		}
 	}
 
+	private void checkAllKeys() throws TaskAbortException {
+		for (String k : allKeys) {
+			skelmap.inflate(k);
+			assertNotNull(skelmap.getDeflateRest(k));
+		}
+		skelmap.deflate();
+		skelmap.isBare();
+	}
+
+	@Test
 	public void testSetup() {
 		assertTrue(true);
 	}
 
+	@Test
 	public void test1() throws TaskAbortException {
 		add(1, 1);
+
+		checkAllKeys();
 	}
 
+	@Test
 	public void test3() throws TaskAbortException {
-		add(3, 1);
-	}
-
-	public void test4() throws TaskAbortException {
-		add(4, 1);
-	}
-
-	public void test10() throws TaskAbortException {
-		add(10, 1);
-	}
-
-	public void test100() throws TaskAbortException {
-		add(100, 1);
-	}
-
-	public void BIGtest1000() throws TaskAbortException {
-		add(1000, 1);
-	}
-
-	public void BIGtest10000() throws TaskAbortException {
-		add(10000, 1);
-	}
-
-	public void test1x3() throws TaskAbortException {
 		add(1, 3);
+
+		checkAllKeys();
 	}
 
-	public void test1x4() throws TaskAbortException {
+	@Test
+	public void test4() throws TaskAbortException {
 		add(1, 4);
+
+		checkAllKeys();
 	}
 
+	@Test
+	public void test10() throws TaskAbortException {
+		add(1, 10);
+
+		checkAllKeys();
+	}
+
+	@Test
+	public void test100() throws TaskAbortException {
+		add(1, 100);
+
+		checkAllKeys();
+	}
+
+	@Ignore("Takes too long to run.")
+	@Test
+	public void BIGtest1000() throws TaskAbortException {
+		add(1, 1000);
+
+		checkAllKeys();
+	}
+
+	@Ignore("Takes too long to run.")
+	@Test
+	public void BIGtest10000() throws TaskAbortException {
+		add(1, 10000);
+
+		checkAllKeys();
+	}
+
+	@Test
+	public void test1x3() throws TaskAbortException {
+		add(3, 1);
+
+		checkAllKeys();
+	}
+
+	@Test
+	public void test1x4() throws TaskAbortException {
+		add(4, 1);
+
+		checkAllKeys();
+	}
+
+	@Test
 	public void test1x5() throws TaskAbortException {
-		add(1, 5);
+		add(5, 1);
+
+		checkAllKeys();
 	}
 
+	@Test
 	public void test6x5() throws TaskAbortException {
-		add(6, 5);
+		add(5, 6);
+
+		checkAllKeys();
 	}
 
+	@Test
 	public void test10x5() throws TaskAbortException {
-		add(10, 5);
+		add(5, 10);
+
+		checkAllKeys();
 	}
 
+	@Ignore("Takes too long to run.")
+	@Test
 	public void BIGtest10x50() throws TaskAbortException {
-		add(10, 50);
+		add(50, 10);
+
+		checkAllKeys();
 	}
 }
