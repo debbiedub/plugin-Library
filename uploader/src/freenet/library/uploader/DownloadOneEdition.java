@@ -226,8 +226,17 @@ class DownloadOneEdition {
 
 	private Random random = new Random();
 	private RotatingQueue<Page> toParse = new RotatingQueue<Page>(random);
+	/**
+	 * Pages to be fetched for the first time.
+	 */
 	private RotatingQueue<Page> toFetch = new RotatingQueue<Page>(random);
-	private AvoidRecentFetchesQueue toRefetchUnfetchable = new AvoidRecentFetchesQueue(random);
+	/**
+	 * Pages that were not possible to fetch.
+	 */
+	private AvoidRecentFetchesQueue toFetchUnfetchable = new AvoidRecentFetchesQueue(random);
+	/**
+	 * Pages that have been successfully fetched.
+	 */
 	private RotatingQueue<Page> toRefetch = new RotatingQueue<Page>(random);
 	private AvoidRecentFetchesQueue toUploadUnfetchable = new AvoidRecentFetchesQueue(random);
 
@@ -235,8 +244,8 @@ class DownloadOneEdition {
 	private int counterParseFailed = 0;
 	private int counterFetchSuccess = 0;
 	private int counterFetchFailed = 0;
-	private int counterRefetchUnfetchableSuccess = 0;
-	private int counterRefetchUnfetchableFailed = 0;
+	private int counterFetchUnfetchableSuccess = 0;
+	private int counterFetchUnfetchableFailed = 0;
 	private int counterRefetchSuccess = 0;
 	private int counterRefetchFailed = 0;
 	private int counterUploadUnfetchableSuccess = 0;
@@ -251,9 +260,9 @@ class DownloadOneEdition {
 		StringBuffer sb = new StringBuffer();
 		sb.append(statisticsLine("toParse", counterParseSuccess, counterParseFailed, toParse));
 		sb.append(statisticsLine("toFetch", counterFetchSuccess, counterFetchFailed, toFetch));
-		sb.append(statisticsLine("toRefetchUnfetchable", 
-					 counterRefetchUnfetchableSuccess, counterRefetchUnfetchableFailed, 
-					 toRefetchUnfetchable));
+		sb.append(statisticsLine("toFetchUnfetchable", 
+					 counterFetchUnfetchableSuccess, counterFetchUnfetchableFailed, 
+					 toFetchUnfetchable));
 		int counterRefetchUpload = counterRefetchUploadSuccess + counterRefetchUploadFailed;
 		if (counterRefetchUpload > 0) {
 			sb.append(new Formatter().format(STATISTICS_FORMAT_PREFIX, 
@@ -537,14 +546,14 @@ class DownloadOneEdition {
 		return successfuls[0];
 	}
 
-	private boolean doRefetchUnfetchable(Page page) {
+	private boolean doFetchUnfetchable(Page page) {
 		boolean result = fetch(page);
 		if (result) {
 			toParse.offer(page);
-			counterRefetchUnfetchableSuccess++;
+			counterFetchUnfetchableSuccess++;
 		} else {
-			toRefetchUnfetchable.offer(page);
-			counterRefetchUnfetchableFailed++;
+			toFetchUnfetchable.offer(page);
+			counterFetchUnfetchableFailed++;
 		}
 		return result;
 	}
@@ -573,6 +582,10 @@ class DownloadOneEdition {
 		return result;
 	}
 
+	/**
+	 * A reference to a new page is seen for the first time.
+	 * @param page
+	 */
 	private void handleNew(Page page) {
 		if (page.getFile().exists()) {
 			page.getFile().setLastModified(System.currentTimeMillis());
@@ -581,7 +594,7 @@ class DownloadOneEdition {
 			}
 			toParse.offer(page);
 		} else if (unfetchables.remove(page.getURI())) {
-			toRefetchUnfetchable.offer(page);
+			toFetchUnfetchable.offer(page);
 		} else {
 			toFetch.offer(page);
 		}
@@ -601,12 +614,11 @@ class DownloadOneEdition {
 
 	private void doParse(Page page) {
 		parse(page);
+		counterParseSuccess++;
 		if (unfetchables.remove(page.getURI())) {
 			toUploadUnfetchable.offer(page);
-			counterParseFailed++;
 		} else {
 			toRefetch.offer(page);
-			counterParseSuccess++;
 		}
 	}
 
@@ -614,7 +626,7 @@ class DownloadOneEdition {
 		if (page.getFile().exists()) {
 			toUploadUnfetchable.offer(page);
 		} else {
-			toRefetchUnfetchable.offer(page);
+			toFetchUnfetchable.offer(page);
 		}
 	}
 
@@ -637,7 +649,7 @@ class DownloadOneEdition {
 			logger.finer("Uploaded Unfetchable" + (result ? "" : "failed") + ".");
 		} catch (UnsupportedOperationException uoe) {
 			logger.log(Level.SEVERE, "Could not copy file " + fromFile + " to " + page.getFile() + ".", uoe);
-			toRefetchUnfetchable.offer(page);
+			toFetchUnfetchable.offer(page);
 		} catch (FileAlreadyExistsException faee) {
 			logger.log(Level.SEVERE, "Could not copy file " + fromFile + " to " + page.getFile() + ".", faee);
 			toUploadUnfetchable.offer(page);
@@ -647,10 +659,10 @@ class DownloadOneEdition {
 				page.getFile().delete();
 				logger.info("Deleted partial copy " + page.getFile());
 			}
-			toRefetchUnfetchable.offer(page);
+			toFetchUnfetchable.offer(page);
 		} catch (SecurityException se) {
 			logger.log(Level.SEVERE, "Could not copy file " + fromFile + " to " + page.getFile() + ".", se);
-			toRefetchUnfetchable.offer(page);
+			toFetchUnfetchable.offer(page);
 		}
 	}
 
@@ -850,7 +862,7 @@ class DownloadOneEdition {
 	private class ProcessUploadUnfetchable extends ProcessSomething {
 		protected void process() {
 			if (morePagesDirectory != null) {
-				Page page = toRefetchUnfetchable.poll();
+				Page page = toFetchUnfetchable.poll();
 				if (page != null) {
 					doCopyAndUploadUnfetchable(page);
 					return;
@@ -880,10 +892,10 @@ class DownloadOneEdition {
 				return;
 			}
 
-			page = toRefetchUnfetchable.pollNotDeferred();
+			page = toFetchUnfetchable.pollNotDeferred();
 			if (page != null) {
 				String log = page.logAttempts.toString();
-				boolean result = doRefetchUnfetchable(page);
+				boolean result = doFetchUnfetchable(page);
 				logger.finer(log + "Fetched RefetchUnfetchable" + (result ? "" : " failed") + ".");
 				return;
 			}
@@ -911,7 +923,7 @@ class DownloadOneEdition {
 		logger.info("Shutdown.");
 		FCPexecutors.shutdown();
 		otherExecutors.shutdown();
-		unfetchables.save(toUploadUnfetchable, toRefetchUnfetchable);
+		unfetchables.save(toUploadUnfetchable, toFetchUnfetchable);
 		if (!waitTermination(TimeUnit.MINUTES.toMillis(1) + OPERATION_GIVE_UP_TIME)) {
 			logger.info("Shutdown now (after long wait).");
 			FCPexecutors.shutdownNow();
@@ -955,7 +967,7 @@ class DownloadOneEdition {
 		otherExecutors.schedule(new ProcessParse(), 2000, TimeUnit.MILLISECONDS);
 		otherExecutors.scheduleWithFixedDelay(new Runnable() {
 			public void run() {
-				unfetchables.save(toUploadUnfetchable, toRefetchUnfetchable);
+				unfetchables.save(toUploadUnfetchable, toFetchUnfetchable);
 			}
 		}, 100, 20, TimeUnit.MINUTES);
 		FcpSession session;
@@ -1034,7 +1046,7 @@ class DownloadOneEdition {
 		 * @return <code>true</code> if we shall upload something.
 		 */
 		private boolean shallUpload(int ql) {
-			return nextLong(uploadTime.get() * (toFetch.size() + toRefetchUnfetchable.size()) / (1 + ql)
+			return nextLong(uploadTime.get() * (toFetch.size() + toFetchUnfetchable.size()) / (1 + ql)
 					/ fetchTime.get()) == 0;
 		}
 
@@ -1108,14 +1120,14 @@ class DownloadOneEdition {
 			}
 
 			if (!startedFetch) {
-				final Page page = toRefetchUnfetchable.pollNotDeferred();
+				final Page page = toFetchUnfetchable.pollNotDeferred();
 				if (page != null) {
 					FCPexecutors.execute(new Runnable() {
 						@Override
 						public void run() {
 							String log = page.logAttempts.toString();
 							MeasureTime t = new MeasureTime(fetchTimes);
-							boolean result = doRefetchUnfetchable(page);
+							boolean result = doFetchUnfetchable(page);
 							t.done();
 							logger.finer(log + "Fetched RefetchUnfetchable" + (result ? "" : " failed") + ".");
 						}
@@ -1153,14 +1165,15 @@ class DownloadOneEdition {
 							logger.finer("Fetched Refetch" + (result ? "" : " failed") + ".");
 						}
 					});
+					startedFetch = true;
 				}
 			}
 		}
 
 		private void queueUpload() {
 			if (morePagesDirectory != null) {
-				if (!startedFetch || shallUpload(toRefetchUnfetchable.size())) {
-					final Page page = toRefetchUnfetchable.poll();
+				if (shallUpload(toFetchUnfetchable.size())) {
+					final Page page = toFetchUnfetchable.poll();
 					if (page != null) {
 						FCPexecutors.execute(new Runnable() {
 							@Override
@@ -1175,7 +1188,7 @@ class DownloadOneEdition {
 				}
 			}
 
-			if (!startedFetch || shallUpload(toUploadUnfetchable.size())) {
+			if (shallUpload(toUploadUnfetchable.size())) {
 				final Page page = toUploadUnfetchable.poll();
 				if (page != null) {
 					FCPexecutors.execute(new Runnable() {
@@ -1244,7 +1257,7 @@ class DownloadOneEdition {
 		FCPexecutors.schedule(qq, 2, TimeUnit.SECONDS);
 		FCPexecutors.scheduleWithFixedDelay(new Runnable() {
 			public void run() {
-				unfetchables.save(toUploadUnfetchable, toRefetchUnfetchable);
+				unfetchables.save(toUploadUnfetchable, toFetchUnfetchable);
 			}
 		}, 100, 20, TimeUnit.MINUTES);
 		FcpSession session;
