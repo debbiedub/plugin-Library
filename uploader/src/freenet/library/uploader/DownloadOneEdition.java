@@ -60,6 +60,10 @@ import net.pterodactylus.fcp.Verbosity;
  * FINE: Stats for fetches and overview of contents of fetched keys. Minor events.
  * FINER: Queue additions, length, ETA, rotations.
  * FINEST: Really minor events.
+ * 
+ * Conventions:
+ * * do*() methods accept a page, do something and deliver the page to a queue (depending on the result).
+ * * doHandle*() methods do very little before delivering to a queue.
  */
 class DownloadOneEdition {
 	/** Logger. */
@@ -415,7 +419,7 @@ class DownloadOneEdition {
 						return false;
 					}
 					seen.add(uri);
-					handleNew(new Page(uri, page));
+					doHandleNew(new Page(uri, page));
 					return true;
 				}
 
@@ -576,7 +580,7 @@ class DownloadOneEdition {
 			toRefetch.offer(page);
 			counterRefetchSuccess++;
 		} else {
-			handleUnfetchable(page);
+			doHandleUnfetchable(page);
 			counterRefetchFailed++;
 		}
 		return result;
@@ -586,7 +590,7 @@ class DownloadOneEdition {
 	 * A reference to a new page is seen for the first time.
 	 * @param page
 	 */
-	private void handleNew(Page page) {
+	private void doHandleNew(Page page) {
 		if (page.getFile().exists()) {
 			page.getFile().setLastModified(System.currentTimeMillis());
 			if (cleanUp != null) {
@@ -606,7 +610,7 @@ class DownloadOneEdition {
 			toParse.offer(page);
 			counterFetchSuccess++;
 		} else {
-			handleUnfetchable(page);
+			doHandleUnfetchable(page);
 			counterFetchFailed++;
 		}
 		return result;
@@ -622,7 +626,7 @@ class DownloadOneEdition {
 		}
 	}
 
-	private void handleUnfetchable(Page page) {
+	private void doHandleUnfetchable(Page page) {
 		if (page.getFile().exists()) {
 			toUploadUnfetchable.offer(page);
 		} else {
@@ -1310,7 +1314,7 @@ class DownloadOneEdition {
 			try {
 				connection.sendMessage(subscriber);
 				subscriber.wait(); // Wait until found
-				handleNew(new Page(newUris[0], null));
+				doHandleNew(new Page(newUris[0], null));
 				subscriber.wait(); // Work until next one found
 				logger.info("Next edition seen.");
 			} catch (InterruptedException e) {
