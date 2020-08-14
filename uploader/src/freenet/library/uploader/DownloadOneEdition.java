@@ -649,7 +649,14 @@ class DownloadOneEdition {
 		File fromFile = new File(morePagesDirectory, page.getFile().getName());
 		try {
 			Files.copy(fromFile.toPath(), page.getFile().toPath());
-			boolean result = doUploadUnfetchable(page);
+			boolean result = upload(page);
+			if (result) {
+				toParse.offer(page);
+				counterUploadUnfetchableSuccess++;
+			} else {
+				toFetchUnfetchable.offer(page);
+				counterUploadUnfetchableFailed++;
+			}
 			logger.finer("Uploaded Unfetchable" + (result ? "" : "failed") + ".");
 		} catch (UnsupportedOperationException uoe) {
 			logger.log(Level.SEVERE, "Could not copy file " + fromFile + " to " + page.getFile() + ".", uoe);
