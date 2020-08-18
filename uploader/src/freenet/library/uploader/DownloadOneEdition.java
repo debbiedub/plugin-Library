@@ -69,8 +69,23 @@ class DownloadOneEdition {
 	/** Logger. */
 	private static final Logger logger = Logger.getLogger(DownloadOneEdition.class.getName());
 
+	/**
+	 * Thread pool for executors that are mostly waiting for Freenet operations
+	 * (fetching and storing).
+	 *
+	 * For #run2(), the size of the pool is used as the limit of the amount of
+	 * concurrent operations against Freenet. This is done by scheduling an executor
+	 * to scheduling more operations.
+	 */
 	private ScheduledExecutorService FCPexecutors;
+
+	/**
+	 * Thread pool for executors that are not doing Freenet operations.
+	 * 
+	 * Mostly idle except when busy reading and parsing pages.
+	 */
 	private ScheduledExecutorService otherExecutors;
+
 	private FcpConnection connection;
 	private boolean closingDown = false;
 	private File directory;
@@ -137,6 +152,7 @@ class DownloadOneEdition {
 	 */
 	private class Page {
 		private final long START_DEFER_TIME = TimeUnit.HOURS.toMillis(4);
+		private final long RANGE_ADD_DEFER_TIME = TimeUnit.HOURS.toMillis(48);
 
 		private FreenetURI uri;
 		private int level = 0;
@@ -173,12 +189,12 @@ class DownloadOneEdition {
 		/**
 		 * Calculate the time until the next attempt to fetch this page.
 		 * 
-		 * The timeToNextFetchAttempt (tTNFA) is adjusted to a random number between
-		 * tTNFA / 2 and tTNFA * 2.5. This means that for each failing attempt, the time
-		 * between attempts is increased (on average).
+		 * The timeToNextFetchAttempt is increased by a random number between 0 and
+		 * RANGE_ADD_DEFER_TIME. Increasing the time will eventually reduce the
+		 * frequency of fetching unfetchables in favor of re-fetching.
 		 */
 		void fetchFailed() {
-			timeToNextFetchAttempt += 1 + 2 * random.nextInt(Long.valueOf(timeToNextFetchAttempt).intValue()) - timeToNextFetchAttempt / 2;
+			timeToNextFetchAttempt += random.nextInt(Long.valueOf(RANGE_ADD_DEFER_TIME).intValue());
 			calculateNextFetchAttempt();
 			logAttempts.append("Failed at ").append(new Date()).append(" and deferred to ").append(nextFetchAttempt).append("\n");
 		}
@@ -250,6 +266,8 @@ class DownloadOneEdition {
 	private int counterFetchFailed = 0;
 	private int counterFetchUnfetchableSuccess = 0;
 	private int counterFetchUnfetchableFailed = 0;
+	private int counterCopyUploadUnfetchableSuccess = 0;
+	private int counterCopyUploadUnfetchableFailed = 0;
 	private int counterRefetchSuccess = 0;
 	private int counterRefetchFailed = 0;
 	private int counterUploadUnfetchableSuccess = 0;
@@ -258,7 +276,7 @@ class DownloadOneEdition {
 	private int counterRefetchUploadFailed = 0;
 
 
-	private static String STATISTICS_FORMAT_PREFIX = "%-21s%7d%7d%7d";
+	private static String STATISTICS_FORMAT_PREFIX = "%-24s%7d%7d%7d";
 
 	public synchronized final void logStatistics() {
 		StringBuffer sb = new StringBuffer();
@@ -267,13 +285,13 @@ class DownloadOneEdition {
 		sb.append(statisticsLine("toFetchUnfetchable", 
 					 counterFetchUnfetchableSuccess, counterFetchUnfetchableFailed, 
 					 toFetchUnfetchable));
-		int counterRefetchUpload = counterRefetchUploadSuccess + counterRefetchUploadFailed;
-		if (counterRefetchUpload > 0) {
+		int counterCopyUploadUnfetchable = counterCopyUploadUnfetchableSuccess + counterCopyUploadUnfetchableFailed;
+		if (counterCopyUploadUnfetchable > 0) {
 			sb.append(new Formatter().format(STATISTICS_FORMAT_PREFIX, 
-							 "RefetchUpload", 
-							 counterRefetchUpload,
-							 counterRefetchUploadSuccess,
-							 counterRefetchUploadFailed)).append("\n");
+							 "CopyUploadUnfetchable", 
+							 counterCopyUploadUnfetchable,
+							 counterCopyUploadUnfetchableSuccess,
+							 counterCopyUploadUnfetchableFailed)).append("\n");
 		}
 		sb.append(statisticsLine("toRefetch", 
 					 counterRefetchSuccess, counterRefetchFailed, 
@@ -281,6 +299,14 @@ class DownloadOneEdition {
 		sb.append(statisticsLine("toUploadUnfetchable", 
 					 counterUploadUnfetchableSuccess, counterUploadUnfetchableFailed, 
 					 toUploadUnfetchable));
+		int counterRefetchUpload = counterRefetchUploadSuccess + counterRefetchUploadFailed;
+		if (counterRefetchUpload > 0) {
+			sb.append(new Formatter().format(STATISTICS_FORMAT_PREFIX, 
+							 "RefetchUploadUnfetchable", 
+							 counterRefetchUpload,
+							 counterRefetchUploadSuccess,
+							 counterRefetchUploadFailed)).append("\n");
+		}
 		if (cleanUp != null) {
 			cleanUp.addLog(sb);
 		}
@@ -652,10 +678,10 @@ class DownloadOneEdition {
 			boolean result = upload(page);
 			if (result) {
 				toParse.offer(page);
-				counterUploadUnfetchableSuccess++;
+				counterCopyUploadUnfetchableSuccess++;
 			} else {
 				toFetchUnfetchable.offer(page);
-				counterUploadUnfetchableFailed++;
+				counterCopyUploadUnfetchableFailed++;
 			}
 			logger.finer("Uploaded Unfetchable" + (result ? "" : "failed") + ".");
 		} catch (UnsupportedOperationException uoe) {
@@ -1113,6 +1139,11 @@ class DownloadOneEdition {
 			}
 		}
 
+		/**
+		 * Normally starts one (1) fetch operation per invocation.
+		 *
+		 * If so, sets startedFetch.
+		 */
 		private void queueFetch() {
 			{
 				final Page page = toFetch.poll();
@@ -1181,6 +1212,13 @@ class DownloadOneEdition {
 			}
 		}
 
+		/**
+		 * Sometimes starts upload operations. If it should or not, depends on the
+		 * balance between the queue lengths and the fetch and upload times, see
+		 * {@link #shallUpload(int)}.
+		 *
+		 * If an upload operations is started, sets startedUpload.
+		 */
 		private void queueUpload() {
 			if (morePagesDirectory != null) {
 				if (shallUpload(toFetchUnfetchable.size())) {
@@ -1240,6 +1278,15 @@ class DownloadOneEdition {
 		}
 	}
 
+	/**
+	 * Starts the ball rolling for the FCPexecutors and otherExecutors.
+	 *
+	 * @param numThreads   Number of threads for FCPexecutors.
+	 * @param u            URI pointing to the root of the tree.
+	 * @param morePagesDir A directory where more pages can be found (or null). If
+	 *                     non-null, this directory is searched for pages to upload
+	 *                     if the download fails.
+	 */
 	private void run2(int numThreads, FreenetURI u, File morePagesDir) {
 		morePagesDirectory = morePagesDir;
 		FCPexecutors = Executors.newScheduledThreadPool(numThreads);
