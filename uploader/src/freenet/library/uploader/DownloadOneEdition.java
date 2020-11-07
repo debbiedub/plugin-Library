@@ -1176,17 +1176,15 @@ class DownloadOneEdition {
 					});
 					startedFetch = true;
 				}
-			}
 
-			{
-				final Page page = toUploadUnfetchable.pollNotDeferred();
-				if (page != null) {
+				final Page page2 = toUploadUnfetchable.pollNotDeferred();
+				if (page2 != null) {
 					FCPexecutors.execute(new Runnable() {
 						@Override
 						public void run() {
-							String log = page.logAttempts.toString();
+							String log = page2.logAttempts.toString();
 							MeasureTime t = new MeasureTime(fetchTimes);
-							boolean result = doRefetchToUpload(page);
+							boolean result = doRefetchToUpload(page2);
 							t.done();
 							logger.finer(log + "Fetched ToUpload" + (result ? "" : " failed") + ".");
 						}
