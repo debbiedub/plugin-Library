@@ -721,7 +721,7 @@ public class SkeletonBTreeMap<K, V> extends BTreeMap<K, V> implements SkeletonMa
 	/**
 	** @param putkey Keys to insert into this map
 	** @param remkey Keys to remove from this map
-	** @param value_handler Closure to retrieve the value for each putkey
+	** @param value_handler Closure to process the value for each putkey and remkey.
 	** @see #update(SortedSet, SortedSet, SortedMap, Closure)
 	*/
 	public <X extends Exception> void update(SortedSet<K> putkey, SortedSet<K> remkey, Closure<Map.Entry<K, V>, X> value_handler, ExceptionConvertor<X> conv) throws TaskAbortException {
