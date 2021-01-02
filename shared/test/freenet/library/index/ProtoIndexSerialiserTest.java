@@ -258,6 +258,7 @@ public class ProtoIndexSerialiserTest extends TestCase {
 		assertEquals(new SkeletonBTreeMap<URIKey, SkeletonBTreeMap<FreenetURI, URIEntry>>(1024),
 				task.data.utab);
 		SkeletonBTreeMap<String, SkeletonBTreeSet<TermEntry>> x = task.data.ttab;
+		assertTrue(x.containsKey("adam"));
 	}
 
 	public void testPushEmpty() throws TaskAbortException {
