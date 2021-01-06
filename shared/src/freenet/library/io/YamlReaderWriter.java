@@ -33,6 +33,7 @@ import java.net.MalformedURLException;
 import freenet.library.index.TermEntry;
 import freenet.library.index.TermIndexEntry;
 import freenet.library.index.TermPageEntry;
+import freenet.library.index.TermDeletePageEntry;
 import freenet.library.index.TermTermEntry;
 import freenet.library.io.serial.Packer;
 import freenet.library.io.FreenetURI;
@@ -100,11 +101,13 @@ implements ObjectStreamReader, ObjectStreamWriter {
 	final public static ObjectBlueprint<TermTermEntry> tebp_term;
 	final public static ObjectBlueprint<TermIndexEntry> tebp_index;
 	final public static ObjectBlueprint<TermPageEntry> tebp_page;
+	final public static ObjectBlueprint<TermDeletePageEntry> tebp_delete_page;
 	static {
 		try {
 			tebp_term = new ObjectBlueprint<TermTermEntry>(TermTermEntry.class, Arrays.asList("subj", "rel", "term"));
 			tebp_index = new ObjectBlueprint<TermIndexEntry>(TermIndexEntry.class, Arrays.asList("subj", "rel", "index"));
 			tebp_page = new ObjectBlueprint<TermPageEntry>(TermPageEntry.class, Arrays.asList("subj", "rel", "page", "title", "positions", "posFragments"));
+			tebp_delete_page = new ObjectBlueprint<TermDeletePageEntry>(TermDeletePageEntry.class, Arrays.asList("subj", "rel", "page", "title", "positions", "posFragments"));
 		} catch (NoSuchFieldException e) {
 			throw new AssertionError(e);
 		} catch (NoSuchMethodException e) {
@@ -133,6 +136,7 @@ implements ObjectStreamReader, ObjectStreamWriter {
 			this.representers.put(TermTermEntry.class, new RepresentTermEntry(tebp_term));
 			this.representers.put(TermIndexEntry.class, new RepresentTermEntry(tebp_index));
 			this.representers.put(TermPageEntry.class, new RepresentTermEntry(tebp_page));
+			this.representers.put(TermDeletePageEntry.class, new RepresentTermEntry(tebp_delete_page));
 		}
 
 		public class RepresentTermEntry<T extends TermEntry> implements Represent {
@@ -184,6 +188,7 @@ implements ObjectStreamReader, ObjectStreamWriter {
 			this.yamlConstructors.put("!TermTermEntry", new ConstructTermEntry(tebp_term));
 			this.yamlConstructors.put("!TermIndexEntry", new ConstructTermEntry(tebp_index));
 			this.yamlConstructors.put("!TermPageEntry", new ConstructTermEntry(tebp_page));
+			this.yamlConstructors.put("!TermDeletePageEntry", new ConstructTermEntry(tebp_delete_page));
 		}
 
 		public class ConstructTermEntry<T extends TermEntry> extends AbstractConstruct {

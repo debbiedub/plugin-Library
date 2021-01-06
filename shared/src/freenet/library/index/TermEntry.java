@@ -21,7 +21,7 @@ abstract public class TermEntry implements Comparable<TermEntry> {
 	final static long serialVersionUID = 0xF23194B7F015560CL;
 
 	public enum EntryType {
-		INDEX, TERM, PAGE
+		INDEX, TERM, PAGE, DELETE_PAGE
 	};
 
 	/**

@@ -149,6 +149,7 @@ public class TermEntryReaderWriter implements ObjectStreamReader<TermEntry>, Obj
 		case INDEX:
 			return new TermIndexEntry(subj, rel, FreenetURI.readFullBinaryKeyWithLength(dis));
 		case PAGE:
+		case DELETE_PAGE:
 			FreenetURI page = FreenetURI.readFullBinaryKeyWithLength(dis);
 			int size = dis.readInt();
 			String title = null;
@@ -165,7 +166,14 @@ public class TermEntryReaderWriter implements ObjectStreamReader<TermEntry>, Obj
 				String val = dis.readUTF();
 				pos.put(index, "".equals(val) ? null : val);
 			}
-			return new TermPageEntry(subj, rel, page, title, pos);
+			switch (types[type]) {
+			case PAGE:
+				return new TermPageEntry(subj, rel, page, title, pos);
+			case DELETE_PAGE:
+				return new TermDeletePageEntry(subj, rel, page, title, pos);
+			default:
+				throw new RuntimeException("Cannot happen");
+			}
 		default:
 			throw new AssertionError();
 		}
@@ -200,6 +208,7 @@ public class TermEntryReaderWriter implements ObjectStreamReader<TermEntry>, Obj
 			((TermIndexEntry)en).index.writeFullBinaryKeyWithLength(dos);
 			return;
 		case PAGE:
+		case DELETE_PAGE:
 			TermPageEntry enn = (TermPageEntry)en;
 			enn.getPage().writeFullBinaryKeyWithLength(dos);
 			int size = enn.hasPositions() ? enn.positionsSize() : 0;

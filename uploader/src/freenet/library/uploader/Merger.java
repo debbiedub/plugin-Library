@@ -19,9 +19,14 @@ import java.util.Map;
 import java.util.Set;
 
 import net.pterodactylus.fcp.FcpConnection;
-
+import freenet.library.ArchiverFactory;
 import freenet.library.FactoryRegister;
+import freenet.library.Priority;
 import freenet.library.index.TermEntry;
+import freenet.library.io.ObjectStreamReader;
+import freenet.library.io.ObjectStreamWriter;
+import freenet.library.io.serial.LiveArchiver;
+import freenet.library.util.exec.SimpleProgress;
 import freenet.library.util.exec.TaskAbortException;
 
 /**
@@ -60,6 +65,7 @@ final public class Merger {
     private static final String SELECTED = UploaderPaths.BASE_FILENAME_DATA + "selected.";
     private static final String FILTERED = UploaderPaths.BASE_FILENAME_DATA + "filtered.";
     private static final String PROCESSED = UploaderPaths.BASE_FILENAME_DATA + "processed.";
+    static final String TO_BE_DELETED = UploaderPaths.BASE_FILENAME_DATA + "deletes.";
     
     static final Comparator<String> comparator = new StringNumberComparator();
     
@@ -187,7 +193,28 @@ final public class Merger {
                 return;
             }
 
-            createMergeDirectory(directory);
+            boolean directoryCreated = createMergeDirectory(directory);
+            if (!directoryCreated) {
+                System.out.println("Scan for terms to be deleted");
+                FactoryRegister.register(new ArchiverFactory() {
+
+					@Override
+					public <T, S extends ObjectStreamWriter & ObjectStreamReader> LiveArchiver<T, SimpleProgress> newArchiver(
+							S rw, String mime, int size, Priority priorityLevel) {
+						return new DiskReader<T, S>(new File(UploaderPaths.LIBRARY_CACHE),
+			            		rw,
+			            		mime, size);
+					}
+
+					@Override
+					public <T, S extends ObjectStreamWriter & ObjectStreamReader> LiveArchiver<T, SimpleProgress> newArchiver(
+							S rw, String mime, int size, LiveArchiver<T, SimpleProgress> archiver) {
+						return newArchiver(rw, mime, size, freenet.library.Priority.Bulk);
+					}
+                	
+                });
+                findTermsToRemove(directory);
+            }
         } catch (TaskAbortException | IllegalStateException | IOException e) {
             e.printStackTrace();
             exitStatus = 1;
@@ -203,7 +230,31 @@ final public class Merger {
     }
 
 
-    private static void createMergeDirectory(File directory) throws TaskAbortException {
+    /**
+     * Read the index and find terms that can be removed. Create a file with
+     * a set with TermDeletePageEntry.
+     */
+    private static void findTermsToRemove(File directory) {
+        final String [] filesWithToBeDeleted = getMatchingFiles(directory, TO_BE_DELETED);
+        System.out.println("There is " + filesWithToBeDeleted.length + " filtered files.");
+        int lastFoundNumber = 0;
+        for (String filename : filesWithToBeDeleted) {
+            int numberFound = Integer.parseInt(filename.substring(TO_BE_DELETED.length()));
+            if (numberFound > lastFoundNumber) {
+                lastFoundNumber = numberFound;
+            }
+        }
+
+        ScanForTermsToBeDeleted scanForTermsToBeDeleted = new ScanForTermsToBeDeleted(directory, lastFoundNumber);
+		try {
+			scanForTermsToBeDeleted.run();
+		} catch (TaskAbortException e) {
+			throw new RuntimeException("Cannot scan", e);
+		}
+	}
+
+
+	private static boolean createMergeDirectory(File directory) throws TaskAbortException {
         final String[] selectedFilesToMerge = getMatchingFiles(directory, SELECTED);
         System.out.println("There is " + selectedFilesToMerge.length + " selected files.");
 
@@ -215,6 +266,9 @@ final public class Merger {
 
         final String[] newFilesToMerge = getMatchingFiles(directory, UploaderPaths.BASE_FILENAME_PUSH_DATA);
         System.out.println("There is " + newFilesToMerge.length + " new files.");
+
+        final String[] toBeDeletedFilesToMerge = getMatchingFiles(directory, TO_BE_DELETED);
+        System.out.println("There is " + toBeDeletedFilesToMerge.length + " to-be-deleted files.");
 
         // Calculate the last number of filtered and processed files.
         int lastFoundNumber = 0;
@@ -239,8 +293,6 @@ final public class Merger {
                 lastSelected = numberFound;
             }
         }
-        
-        final DirectoryCreator creator = new DirectoryCreator(directory);
 
         Map<IndexPeeker, TermEntryFileWriter> writers =
                 new HashMap<IndexPeeker, TermEntryFileWriter>();
@@ -304,6 +356,9 @@ final public class Merger {
                 if (doNew && nextNew < newFilesToMerge.length) {
                     return true;
                 }
+                if (doNew && nextNew < newFilesToMerge.length + toBeDeletedFilesToMerge.length) {
+                    return true;
+                }
                 return false;
             }
 
@@ -323,6 +378,8 @@ final public class Merger {
                     return processedFilesToMerge[nextProcessed++];
                 } else if (doNew && nextNew < newFilesToMerge.length) {
                     return newFilesToMerge[nextNew++];
+                } else if (doNew && nextNew < newFilesToMerge.length + toBeDeletedFilesToMerge.length) {
+                    return toBeDeletedFilesToMerge[nextNew++ - newFilesToMerge.length];
                 } else {
                     throw new IllegalArgumentException("next() called after hasNext() returned false.");
                 }
@@ -338,6 +395,8 @@ final public class Merger {
 
         int totalTerms = 0;
 
+        DirectoryCreator creator = null;
+
         for (String s : new Iterable<String>() {
             @Override
             public Iterator<String> iterator() {
@@ -351,15 +410,25 @@ final public class Merger {
                 fileInputStream = new FileInputStream(file);
             } catch (FileNotFoundException e) {
                 e.printStackTrace();
-                return;
+                return true;
+            }
+            if (creator == null) {
+                creator = new DirectoryCreator(directory);
             }
             TermEntryReaderIterator teri = new TermEntryReaderIterator(new DataInputStream(fileInputStream));
             Iterator<TermEntry> iterator = teri.iterator();
             while (iterator.hasNext()) {
                 TermEntry tt = iterator.next();
-                if (tt.toBeDropped()) {
-                	System.out.println("Ignoring term " + tt);
-                	continue;
+                boolean isANewFile = false;
+                for (int i = 0; i < newFilesToMerge.length; i++) {
+                    if (newFilesToMerge[i].equals(s)) {
+                    	isANewFile = true;
+                    	break;
+                    }
+                }
+                if (isANewFile && tt.toBeDropped()) {
+                     System.out.println("Ignoring term " + tt);
+                     continue;
                 }
                 totalTerms ++;
                 if (creatorPeeker.include(tt.subj)) {
@@ -414,15 +483,21 @@ final public class Merger {
             notMerged.close();
             notMerged = null;
         }
-        creator.done();
         for (File file : toBeRemoved) {
             System.out.println("Removing file " + file);
             file.delete();
+        }
+        if (creator != null) {
+            creator.done();
+            creator = null;
+        } else {
+        	return false;
         }
         double percentage = new Double(processedFilenames.movedTerms).doubleValue() / new Double(totalTerms).doubleValue() * 100.0;
         System.out.format("Processed %d/%d terms (%.2f%%).%n",
                           processedFilenames.movedTerms,
                           totalTerms,
                           percentage);
+        return true;
     }
 }
