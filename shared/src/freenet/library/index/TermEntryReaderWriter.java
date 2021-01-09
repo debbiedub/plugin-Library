@@ -215,11 +215,8 @@ public class TermEntryReaderWriter implements ObjectStreamReader<TermEntry>, Obj
 			if(enn.title == null)
 				dos.writeInt(size);
 			else {
-				if (!isValid(enn.title)) {
-					throw new RuntimeException("Invalid title " + enn.title);
-				}
 				dos.writeInt(~size); // invert bits to signify title is set
-				dos.writeUTF(enn.title);
+				dos.writeUTF(clean(enn.title));
 			}
 			if(size != 0) {
 				if(enn.hasFragments()) {
