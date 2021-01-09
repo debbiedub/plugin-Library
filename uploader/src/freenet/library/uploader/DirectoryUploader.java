@@ -602,7 +602,10 @@ class DirectoryUploader implements Runnable {
                         // merging data we've already merged.  But
                         // most of the time it will add up.
                     }
-                    tree.removeAll(dataDelete);
+                    if (!dataDelete.isEmpty()) {
+                        tree.inflate();
+                        tree.removeAll(dataDelete);
+                    }
                     tree.deflate();
                     assert(tree.isBare());
                 }
