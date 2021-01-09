@@ -76,6 +76,10 @@ public class ScanForTermsToBeDeleted {
 			for (TermEntry e : set) {
 				if (e instanceof TermPageEntry) {
 					TermPageEntry tpe = (TermPageEntry) e;
+					if (tpe.toBeDropped()) {
+						writeTermEntry(new TermDeletePageEntry(tpe));
+						continue;
+					}
 					FreenetURI uri = tpe.getPage();
 					if (uri.isSSKForUSK()) {
 						FreenetURI uri2 = uri.uskForSSK();
