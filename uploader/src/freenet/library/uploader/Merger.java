@@ -236,7 +236,7 @@ final public class Merger {
      */
     private static void findTermsToRemove(File directory) {
         final String [] filesWithToBeDeleted = getMatchingFiles(directory, TO_BE_DELETED);
-        System.out.println("There is " + filesWithToBeDeleted.length + " filtered files.");
+        System.out.println("There is " + filesWithToBeDeleted.length + " files to be deleted.");
         int lastFoundNumber = 0;
         for (String filename : filesWithToBeDeleted) {
             int numberFound = Integer.parseInt(filename.substring(TO_BE_DELETED.length()));
