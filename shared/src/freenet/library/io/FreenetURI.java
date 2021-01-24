@@ -184,7 +184,10 @@ public class FreenetURI implements Cloneable, Serializable {
 		Matcher m = SSK_FOR_USK_PATTERN.matcher(contents);
 		if (m.matches()) {
 			try {
-				return new FreenetURI("USK@" + m.group(1) + "/" + m.group(2) + m.group(3));
+				if (m.group(3) != null)
+					return new FreenetURI("USK@" + m.group(1) + "/" + m.group(2) + m.group(3));
+				else
+					return new FreenetURI("USK@" + m.group(1) + "/" + m.group(2));
 			} catch (MalformedURLException e) {
 				// FALLTHRU
 			}
