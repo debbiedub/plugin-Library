@@ -104,14 +104,11 @@ public class ScanForTermsToBeDeleted {
 					}
 				}
 			}
+			set.deflate();
 			// Do one file full of removals at the time.
 			if (openedFile != null && openedFile.isFull()) {
 				openedFile.close();
 				openedFile = null;
-				break;
-			}
-			// Do it one at the time to begin with:
-			if (openedFile != null) {
 				break;
 			}
 		}
