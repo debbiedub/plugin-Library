@@ -28,24 +28,24 @@ class DirectoryCreator {
 	private String nextIndexDirName;
 
 	DirectoryCreator(File directory) {
-        int nextIndexDirNumber = 0;
-        do {
-        	nextIndexDirNumber ++;
-        	nextIndexDirName = UploaderPaths.DISK_DIR_PREFIX + nextIndexDirNumber;
-        	newIndexDir = new File(directory, nextIndexDirName);
-        } while (newIndexDir.exists());
-        System.out.println("Writing into directory " + nextIndexDirName);
-        newIndexDir.mkdir();
-        srlDisk = ProtoIndexSerialiser.forIndex(newIndexDir);
-        LiveArchiver<Map<String,Object>, SimpleProgress> archiver = 
-        		(LiveArchiver<Map<String,Object>, SimpleProgress>) srlDisk.getChildSerialiser();
-        leafsrlDisk = ProtoIndexComponentSerialiser.get(ProtoIndexComponentSerialiser.FMT_FILE_LOCAL, archiver);
-        try {
+		int nextIndexDirNumber = 0;
+		do {
+			nextIndexDirNumber ++;
+			nextIndexDirName = UploaderPaths.DISK_DIR_PREFIX + nextIndexDirNumber;
+			newIndexDir = new File(directory, nextIndexDirName);
+		} while (newIndexDir.exists());
+		System.out.println("Writing into directory " + nextIndexDirName);
+		newIndexDir.mkdir();
+		srlDisk = ProtoIndexSerialiser.forIndex(newIndexDir);
+		LiveArchiver<Map<String,Object>, SimpleProgress> archiver =
+				(LiveArchiver<Map<String,Object>, SimpleProgress>) srlDisk.getChildSerialiser();
+		leafsrlDisk = ProtoIndexComponentSerialiser.get(ProtoIndexComponentSerialiser.FMT_FILE_LOCAL, archiver);
+		try {
 			idxDisk = new ProtoIndex(new FreenetURI("CHK@"), "test", null, null, 0L);
 		} catch (MalformedURLException e) {
 			throw new AssertionError(e);
 		}
-        leafsrlDisk.setSerialiserFor(idxDisk);
+		leafsrlDisk.setSerialiserFor(idxDisk);
 
 		countTerms = 0;
 	}
@@ -73,7 +73,7 @@ class DirectoryCreator {
 			}
 		}
 	}
-	
+
 	public void putEntry(TermEntry tt) throws TaskAbortException {
 		SkeletonBTreeSet<TermEntry> tree;
 		if (idxDisk.ttab.containsKey(tt.subj)) {
@@ -87,7 +87,7 @@ class DirectoryCreator {
 		idxDisk.ttab.put(tt.subj, tree);
 		countTerms++;
 	}
-	
+
 	public int size() {
 		return idxDisk.ttab.size();
 	}
@@ -105,7 +105,7 @@ class DirectoryCreator {
 		srlDisk.push(task4);
 		String uri = (String) task4.meta;
 		writeStringTo(new File(newIndexDir, UploaderPaths.LAST_DISK_FILENAME), uri);
-		System.out.println("Created new directory " + nextIndexDirName + 
+		System.out.println("Created new directory " + nextIndexDirName +
 				", file root at " + uri +
 				" with " + countTerms + " terms.");
 	}

@@ -34,7 +34,7 @@ import freenet.library.util.exec.TaskAbortException;
  *
  * The ambition is to avoid having the merger running in the freenet process,
  * instead run it as a separate java program.
- * 
+ *
  * It reads and removes the files created by the plugin (by Spider) and
  * delivers data using FCP.
  *
@@ -59,151 +59,151 @@ import freenet.library.util.exec.TaskAbortException;
  * <ol> Done.
  */
 final public class Merger {
-    
-    private static FcpSession session;
 
-    private static final String SELECTED = UploaderPaths.BASE_FILENAME_DATA + "selected.";
-    private static final String FILTERED = UploaderPaths.BASE_FILENAME_DATA + "filtered.";
-    private static final String PROCESSED = UploaderPaths.BASE_FILENAME_DATA + "processed.";
-    static final String TO_BE_DELETED = UploaderPaths.BASE_FILENAME_DATA + "deletes.";
-    
-    static final Comparator<String> comparator = new StringNumberComparator();
-    
-    static class StringNumberComparator implements Comparator<String> {
-        @Override
-        public int compare(String a, String b) {
-            int ai;
-            int bi;
-            for (ai = 0, bi = 0; ai < a.length() && bi < b.length(); ai++, bi++) {
-                if (a.substring(ai, ai + 1).matches("[0-9]")
-                        && a.substring(bi, bi + 1).matches("[0-9]")) {
-                    int aii;
-                    for (aii = ai + 1; aii < a.length(); aii++) {
-                        if (!a.substring(aii, aii + 1).matches("[0-9]")) {
-                            break;
-                        }
-                    }
-                    int bii;
-                    for (bii = bi + 1; bii < b.length(); bii++) {
-                        if (!b.substring(bii, bii + 1).matches("[0-9]")) {
-                            break;
-                        }
-                    }
-                    try {
-                        int ret = Integer.valueOf(a.substring(ai, aii)).compareTo(
-                                          Integer.valueOf(b.substring(bi, bii)));
-                        if (ret != 0) {
-                            return ret;
-                        }
-                        
-                        ai = aii - 1;
-                        bi = bii - 1;
-                        continue;
-                    } catch (NumberFormatException e) {
-                        continue;
-                    }
-                }
-                int ret = a.charAt(ai) - b.charAt(bi);
-                if (ret != 0) {
-                    return ret;
-                }
-            }
-            if (ai < a.length()) {
-                return 1;
-            }
-            if (bi < b.length()) {
-                return -1;
-            }
-            return 0;
-        }
-    }
+	private static FcpSession session;
 
-    /**
-     * Return an array with the filenames in order.
-     */
-    static String[] getMatchingFiles(File directory,
-            final String baseFilename) {
-        String[] array = directory.list(new FilenameFilter() {
-                            
-                public boolean accept(File arg0, String arg1) {
-                    if (!(arg1.toLowerCase().startsWith(baseFilename))) {
-                        return false;
-                    }
-                    File f = new File(arg0, arg1);
-                    if (!f.isFile()) {
-                        return false;
-                    }
-                    if (f.length() == 0) {
-                        f.delete();
-                        return false;
-                    }
-                    return true;
-                }
-            });
-        Arrays.sort(array, comparator);
-        return array;
-    }
+	private static final String SELECTED = UploaderPaths.BASE_FILENAME_DATA + "selected.";
+	private static final String FILTERED = UploaderPaths.BASE_FILENAME_DATA + "filtered.";
+	private static final String PROCESSED = UploaderPaths.BASE_FILENAME_DATA + "processed.";
+	static final String TO_BE_DELETED = UploaderPaths.BASE_FILENAME_DATA + "deletes.";
+
+	static final Comparator<String> comparator = new StringNumberComparator();
+
+	static class StringNumberComparator implements Comparator<String> {
+		@Override
+		public int compare(String a, String b) {
+			int ai;
+			int bi;
+			for (ai = 0, bi = 0; ai < a.length() && bi < b.length(); ai++, bi++) {
+				if (a.substring(ai, ai + 1).matches("[0-9]")
+						&& a.substring(bi, bi + 1).matches("[0-9]")) {
+					int aii;
+					for (aii = ai + 1; aii < a.length(); aii++) {
+						if (!a.substring(aii, aii + 1).matches("[0-9]")) {
+							break;
+						}
+					}
+					int bii;
+					for (bii = bi + 1; bii < b.length(); bii++) {
+						if (!b.substring(bii, bii + 1).matches("[0-9]")) {
+							break;
+						}
+					}
+					try {
+						int ret = Integer.valueOf(a.substring(ai, aii)).compareTo(
+										  Integer.valueOf(b.substring(bi, bii)));
+						if (ret != 0) {
+							return ret;
+						}
+
+						ai = aii - 1;
+						bi = bii - 1;
+						continue;
+					} catch (NumberFormatException e) {
+						continue;
+					}
+				}
+				int ret = a.charAt(ai) - b.charAt(bi);
+				if (ret != 0) {
+					return ret;
+				}
+			}
+			if (ai < a.length()) {
+				return 1;
+			}
+			if (bi < b.length()) {
+				return -1;
+			}
+			return 0;
+		}
+	}
+
+	/**
+	 * Return an array with the filenames in order.
+	 */
+	static String[] getMatchingFiles(File directory,
+			final String baseFilename) {
+		String[] array = directory.list(new FilenameFilter() {
+
+				public boolean accept(File arg0, String arg1) {
+					if (!(arg1.toLowerCase().startsWith(baseFilename))) {
+						return false;
+					}
+					File f = new File(arg0, arg1);
+					if (!f.isFile()) {
+						return false;
+					}
+					if (f.length() == 0) {
+						f.delete();
+						return false;
+					}
+					return true;
+				}
+			});
+		Arrays.sort(array, comparator);
+		return array;
+	}
 
 
-    public static void main(String[] argv) {
-        int exitStatus = 0;
+	public static void main(String[] argv) {
+		int exitStatus = 0;
 
-        //if (!cwd.matches(".*/plugins")) {
-        //    System.err.println("Should be started in the freenet directory.");
-        //    System.exit(1);
-        //}
-        
-        // Now we are in the Freenet directory. 
-        // The rest of the work is done here.
-        FcpConnection connection = null;
+		//if (!cwd.matches(".*/plugins")) {
+		//	System.err.println("Should be started in the freenet directory.");
+		//	System.exit(1);
+		//}
 
-        try {
-            String[] dirsToMerge = null;
-            File directory = new File(".");
-            for (String arg : argv) {
-                if (new File(directory, arg).isDirectory()) {
-                    dirsToMerge = new String[1];
-                    dirsToMerge[0] = arg;
-                } else {
-                    System.out.println("No such directory " + arg);
-                }
-                break;
-            }
-            if (dirsToMerge == null) {
-                dirsToMerge = directory.list(new FilenameFilter() {
-                                    
-                    public boolean accept(File arg0, String arg1) {
-                        if(!(arg1.toLowerCase().startsWith(UploaderPaths.DISK_DIR_PREFIX))) return false;
-                        return true;
-                    }
-                                    
-                });
-            }
+		// Now we are in the Freenet directory.
+		// The rest of the work is done here.
+		FcpConnection connection = null;
 
-            if (dirsToMerge.length > 0) {
-                System.out.println("Merging directory " + dirsToMerge[0]);
-                session = new FcpSession();
-                connection = session.getConnection();
-                UploaderLibrary.init(connection);
-                FactoryRegister.register(UploaderLibrary.getInstance());
-                
-                File directoryToMerge = new File(directory, dirsToMerge[0]);
-                new DirectoryUploader(connection, directoryToMerge, false).run();
-                System.out.println("Upload completed.");
-                return;
-            }
+		try {
+			String[] dirsToMerge = null;
+			File directory = new File(".");
+			for (String arg : argv) {
+				if (new File(directory, arg).isDirectory()) {
+					dirsToMerge = new String[1];
+					dirsToMerge[0] = arg;
+				} else {
+					System.out.println("No such directory " + arg);
+				}
+				break;
+			}
+			if (dirsToMerge == null) {
+				dirsToMerge = directory.list(new FilenameFilter() {
 
-            boolean directoryCreated = createMergeDirectory(directory);
-            if (!directoryCreated) {
-                System.out.println("Scan for terms to be deleted");
-                FactoryRegister.register(new ArchiverFactory() {
+					public boolean accept(File arg0, String arg1) {
+						if(!(arg1.toLowerCase().startsWith(UploaderPaths.DISK_DIR_PREFIX))) return false;
+						return true;
+					}
+
+				});
+			}
+
+			if (dirsToMerge.length > 0) {
+				System.out.println("Merging directory " + dirsToMerge[0]);
+				session = new FcpSession();
+				connection = session.getConnection();
+				UploaderLibrary.init(connection);
+				FactoryRegister.register(UploaderLibrary.getInstance());
+
+				File directoryToMerge = new File(directory, dirsToMerge[0]);
+				new DirectoryUploader(connection, directoryToMerge, false).run();
+				System.out.println("Upload completed.");
+				return;
+			}
+
+			boolean directoryCreated = createMergeDirectory(directory);
+			if (!directoryCreated) {
+				System.out.println("Scan for terms to be deleted");
+				FactoryRegister.register(new ArchiverFactory() {
 
 					@Override
 					public <T, S extends ObjectStreamWriter & ObjectStreamReader> LiveArchiver<T, SimpleProgress> newArchiver(
 							S rw, String mime, int size, Priority priorityLevel) {
 						return new DiskReader<T, S>(new File(UploaderPaths.LIBRARY_CACHE),
-			            		rw,
-			            		mime, size);
+								rw,
+								mime, size);
 					}
 
 					@Override
@@ -211,41 +211,41 @@ final public class Merger {
 							S rw, String mime, int size, LiveArchiver<T, SimpleProgress> archiver) {
 						return newArchiver(rw, mime, size, freenet.library.Priority.Bulk);
 					}
-                	
-                });
-                findTermsToRemove(directory);
-            }
-        } catch (TaskAbortException | IllegalStateException | IOException e) {
-            e.printStackTrace();
-            exitStatus = 1;
-        } finally {
-            if (session != null) {
-                session.close();
-                if (exitStatus == 0) {
-                    exitStatus = session.getStatus();
-                }
-            }
-        }
-        System.exit(exitStatus);
-    }
+
+				});
+				findTermsToRemove(directory);
+			}
+		} catch (TaskAbortException | IllegalStateException | IOException e) {
+			e.printStackTrace();
+			exitStatus = 1;
+		} finally {
+			if (session != null) {
+				session.close();
+				if (exitStatus == 0) {
+					exitStatus = session.getStatus();
+				}
+			}
+		}
+		System.exit(exitStatus);
+	}
 
 
-    /**
-     * Read the index and find terms that can be removed. Create a file with
-     * a set with TermDeletePageEntry.
-     */
-    private static void findTermsToRemove(File directory) {
-        final String [] filesWithToBeDeleted = getMatchingFiles(directory, TO_BE_DELETED);
-        System.out.println("There is " + filesWithToBeDeleted.length + " files to be deleted.");
-        int lastFoundNumber = 0;
-        for (String filename : filesWithToBeDeleted) {
-            int numberFound = Integer.parseInt(filename.substring(TO_BE_DELETED.length()));
-            if (numberFound > lastFoundNumber) {
-                lastFoundNumber = numberFound;
-            }
-        }
+	/**
+	 * Read the index and find terms that can be removed. Create a file with
+	 * a set with TermDeletePageEntry.
+	 */
+	private static void findTermsToRemove(File directory) {
+		final String [] filesWithToBeDeleted = getMatchingFiles(directory, TO_BE_DELETED);
+		System.out.println("There is " + filesWithToBeDeleted.length + " files to be deleted.");
+		int lastFoundNumber = 0;
+		for (String filename : filesWithToBeDeleted) {
+			int numberFound = Integer.parseInt(filename.substring(TO_BE_DELETED.length()));
+			if (numberFound > lastFoundNumber) {
+				lastFoundNumber = numberFound;
+			}
+		}
 
-        ScanForTermsToBeDeleted scanForTermsToBeDeleted = new ScanForTermsToBeDeleted(directory, lastFoundNumber);
+		ScanForTermsToBeDeleted scanForTermsToBeDeleted = new ScanForTermsToBeDeleted(directory, lastFoundNumber);
 		try {
 			scanForTermsToBeDeleted.run();
 		} catch (TaskAbortException e) {
@@ -255,249 +255,249 @@ final public class Merger {
 
 
 	private static boolean createMergeDirectory(File directory) throws TaskAbortException {
-        final String[] selectedFilesToMerge = getMatchingFiles(directory, SELECTED);
-        System.out.println("There is " + selectedFilesToMerge.length + " selected files.");
+		final String[] selectedFilesToMerge = getMatchingFiles(directory, SELECTED);
+		System.out.println("There is " + selectedFilesToMerge.length + " selected files.");
 
-        final String [] filteredFilesToMerge = getMatchingFiles(directory, FILTERED);
-        System.out.println("There is " + filteredFilesToMerge.length + " filtered files.");
+		final String [] filteredFilesToMerge = getMatchingFiles(directory, FILTERED);
+		System.out.println("There is " + filteredFilesToMerge.length + " filtered files.");
 
-        final String [] processedFilesToMerge = getMatchingFiles(directory, PROCESSED);
-        System.out.println("There is " + processedFilesToMerge.length + " processed files.");
+		final String [] processedFilesToMerge = getMatchingFiles(directory, PROCESSED);
+		System.out.println("There is " + processedFilesToMerge.length + " processed files.");
 
-        final String[] newFilesToMerge = getMatchingFiles(directory, UploaderPaths.BASE_FILENAME_PUSH_DATA);
-        System.out.println("There is " + newFilesToMerge.length + " new files.");
+		final String[] newFilesToMerge = getMatchingFiles(directory, UploaderPaths.BASE_FILENAME_PUSH_DATA);
+		System.out.println("There is " + newFilesToMerge.length + " new files.");
 
-        final String[] toBeDeletedFilesToMerge = getMatchingFiles(directory, TO_BE_DELETED);
-        System.out.println("There is " + toBeDeletedFilesToMerge.length + " to-be-deleted files.");
+		final String[] toBeDeletedFilesToMerge = getMatchingFiles(directory, TO_BE_DELETED);
+		System.out.println("There is " + toBeDeletedFilesToMerge.length + " to-be-deleted files.");
 
-        // Calculate the last number of filtered and processed files.
-        int lastFoundNumber = 0;
-        for (String filename : filteredFilesToMerge) {
-            int numberFound = Integer.parseInt(filename.substring(FILTERED.length()));
-            if (numberFound > lastFoundNumber) {
-                lastFoundNumber = numberFound;
-            }
-        }
-        for (String filename : processedFilesToMerge) {
-            int numberFound = Integer.parseInt(filename.substring(PROCESSED.length()));
-            if (numberFound > lastFoundNumber) {
-                lastFoundNumber = numberFound;
-            }
-        }
-        System.out.println("Last found: " + lastFoundNumber);
+		// Calculate the last number of filtered and processed files.
+		int lastFoundNumber = 0;
+		for (String filename : filteredFilesToMerge) {
+			int numberFound = Integer.parseInt(filename.substring(FILTERED.length()));
+			if (numberFound > lastFoundNumber) {
+				lastFoundNumber = numberFound;
+			}
+		}
+		for (String filename : processedFilesToMerge) {
+			int numberFound = Integer.parseInt(filename.substring(PROCESSED.length()));
+			if (numberFound > lastFoundNumber) {
+				lastFoundNumber = numberFound;
+			}
+		}
+		System.out.println("Last found: " + lastFoundNumber);
 
-        int lastSelected = 0;
-        for (String filename : selectedFilesToMerge) {
-            int numberFound = Integer.parseInt(filename.substring(SELECTED.length()));
-            if (numberFound > lastSelected) {
-                lastSelected = numberFound;
-            }
-        }
+		int lastSelected = 0;
+		for (String filename : selectedFilesToMerge) {
+			int numberFound = Integer.parseInt(filename.substring(SELECTED.length()));
+			if (numberFound > lastSelected) {
+				lastSelected = numberFound;
+			}
+		}
 
-        Map<IndexPeeker, TermEntryFileWriter> writers =
-                new HashMap<IndexPeeker, TermEntryFileWriter>();
-        IndexPeeker creatorPeeker = new IndexPeeker(directory);
+		Map<IndexPeeker, TermEntryFileWriter> writers =
+				new HashMap<IndexPeeker, TermEntryFileWriter>();
+		IndexPeeker creatorPeeker = new IndexPeeker(directory);
 
-        Set<File> toBeRemoved = new HashSet<File>();
-        
+		Set<File> toBeRemoved = new HashSet<File>();
+
 		/**
 		 * All files to read through in the correct order.
 		 */
-        class ProcessedFilenames implements Iterator<String> {
-            String restBase;
-            boolean createSelectedFiles = false;
-            boolean processingSelectedFile = false;
-            int movedTerms = 0;
-            private boolean doSelected = false;
-            private boolean doAllSelected = false;
-            private boolean doFiltered = false;
-            private boolean doProcessed = false;
-            private boolean doNew = true;
-            private int nextSelected = 0;
-            private int nextFiltered = 0;
-            private int nextProcessed = 0;
-            private int nextNew = 0;
+		class ProcessedFilenames implements Iterator<String> {
+			String restBase;
+			boolean createSelectedFiles = false;
+			boolean processingSelectedFile = false;
+			int movedTerms = 0;
+			private boolean doSelected = false;
+			private boolean doAllSelected = false;
+			private boolean doFiltered = false;
+			private boolean doProcessed = false;
+			private boolean doNew = true;
+			private int nextSelected = 0;
+			private int nextFiltered = 0;
+			private int nextProcessed = 0;
+			private int nextNew = 0;
 
-            ProcessedFilenames() {
-                if (selectedFilesToMerge.length > 0) {
-                    doSelected = true;
+			ProcessedFilenames() {
+				if (selectedFilesToMerge.length > 0) {
+					doSelected = true;
 					if (processedFilesToMerge.length > filteredFilesToMerge.length) {
-                        createSelectedFiles = true;
-                        doAllSelected = true;
-                        doFiltered = true;
-                        restBase = FILTERED;
-                    } else {
-                        restBase = PROCESSED;
-                    }
-                } else {
-                    createSelectedFiles = true;
-                    doFiltered = true;
-                    restBase = FILTERED;
-                }
-                doProcessed = true;
-                doNew = true;
-            }
+						createSelectedFiles = true;
+						doAllSelected = true;
+						doFiltered = true;
+						restBase = FILTERED;
+					} else {
+						restBase = PROCESSED;
+					}
+				} else {
+					createSelectedFiles = true;
+					doFiltered = true;
+					restBase = FILTERED;
+				}
+				doProcessed = true;
+				doNew = true;
+			}
 
-            @Override
-            public boolean hasNext() {
-                if (doSelected && 
-                        nextSelected < selectedFilesToMerge.length) {
-                	return true;
-                }
-                if (doAllSelected && nextSelected < selectedFilesToMerge.length) {
-                    return true;
-                }
-                if (doFiltered && nextFiltered < filteredFilesToMerge.length) {
-                    return true;
-                }
-                if (doProcessed && nextProcessed < processedFilesToMerge.length) {
-                    return true;
-                }
-                if (doNew && nextNew < newFilesToMerge.length) {
-                    return true;
-                }
-                if (doNew && nextNew < newFilesToMerge.length + toBeDeletedFilesToMerge.length) {
-                    return true;
-                }
-                return false;
-            }
+			@Override
+			public boolean hasNext() {
+				if (doSelected &&
+						nextSelected < selectedFilesToMerge.length) {
+					return true;
+				}
+				if (doAllSelected && nextSelected < selectedFilesToMerge.length) {
+					return true;
+				}
+				if (doFiltered && nextFiltered < filteredFilesToMerge.length) {
+					return true;
+				}
+				if (doProcessed && nextProcessed < processedFilesToMerge.length) {
+					return true;
+				}
+				if (doNew && nextNew < newFilesToMerge.length) {
+					return true;
+				}
+				if (doNew && nextNew < newFilesToMerge.length + toBeDeletedFilesToMerge.length) {
+					return true;
+				}
+				return false;
+			}
 
-            @Override
-            public String next() {
-                processingSelectedFile = false;
-                if (doSelected && 
-                        nextSelected < selectedFilesToMerge.length) {
-                    processingSelectedFile = true;
-                    doSelected = false;
-                    return selectedFilesToMerge[nextSelected++];
-                } else if (doAllSelected && nextSelected < selectedFilesToMerge.length) {
-                    return selectedFilesToMerge[nextSelected++];
-                } else if (doFiltered && nextFiltered < filteredFilesToMerge.length) {
-                    return filteredFilesToMerge[nextFiltered++];
-                } else if (doProcessed && nextProcessed < processedFilesToMerge.length) {
-                    return processedFilesToMerge[nextProcessed++];
-                } else if (doNew && nextNew < newFilesToMerge.length) {
-                    return newFilesToMerge[nextNew++];
-                } else if (doNew && nextNew < newFilesToMerge.length + toBeDeletedFilesToMerge.length) {
-                    return toBeDeletedFilesToMerge[nextNew++ - newFilesToMerge.length];
-                } else {
-                    throw new IllegalArgumentException("next() called after hasNext() returned false.");
-                }
-            }
+			@Override
+			public String next() {
+				processingSelectedFile = false;
+				if (doSelected &&
+						nextSelected < selectedFilesToMerge.length) {
+					processingSelectedFile = true;
+					doSelected = false;
+					return selectedFilesToMerge[nextSelected++];
+				} else if (doAllSelected && nextSelected < selectedFilesToMerge.length) {
+					return selectedFilesToMerge[nextSelected++];
+				} else if (doFiltered && nextFiltered < filteredFilesToMerge.length) {
+					return filteredFilesToMerge[nextFiltered++];
+				} else if (doProcessed && nextProcessed < processedFilesToMerge.length) {
+					return processedFilesToMerge[nextProcessed++];
+				} else if (doNew && nextNew < newFilesToMerge.length) {
+					return newFilesToMerge[nextNew++];
+				} else if (doNew && nextNew < newFilesToMerge.length + toBeDeletedFilesToMerge.length) {
+					return toBeDeletedFilesToMerge[nextNew++ - newFilesToMerge.length];
+				} else {
+					throw new IllegalArgumentException("next() called after hasNext() returned false.");
+				}
+			}
 
-            @Override
-            public void remove() {
-                throw new IllegalArgumentException("Not implemented");
-            }
-        };
-        final ProcessedFilenames processedFilenames = new ProcessedFilenames();
-        TermEntryFileWriter notMerged = null;
+			@Override
+			public void remove() {
+				throw new IllegalArgumentException("Not implemented");
+			}
+		};
+		final ProcessedFilenames processedFilenames = new ProcessedFilenames();
+		TermEntryFileWriter notMerged = null;
 
-        int totalTerms = 0;
+		int totalTerms = 0;
 
-        DirectoryCreator creator = null;
+		DirectoryCreator creator = null;
 
-        for (String s : new Iterable<String>() {
-            @Override
-            public Iterator<String> iterator() {
-                return processedFilenames;
-            }
-        }) {
-            System.out.println("File: " + s);
-            File file = new File(s);
-            FileInputStream fileInputStream;
-            try {
-                fileInputStream = new FileInputStream(file);
-            } catch (FileNotFoundException e) {
-                e.printStackTrace();
-                return true;
-            }
-            if (creator == null) {
-                creator = new DirectoryCreator(directory);
-            }
-            TermEntryReaderIterator teri = new TermEntryReaderIterator(new DataInputStream(fileInputStream));
-            Iterator<TermEntry> iterator = teri.iterator();
-            while (iterator.hasNext()) {
-                TermEntry tt = iterator.next();
-                boolean isANewFile = false;
-                for (int i = 0; i < newFilesToMerge.length; i++) {
-                    if (newFilesToMerge[i].equals(s)) {
-                    	isANewFile = true;
-                    	break;
-                    }
-                }
-                if (isANewFile && tt.toBeDropped()) {
-                     System.out.println("Ignoring term " + tt);
-                     continue;
-                }
-                totalTerms ++;
-                if (creatorPeeker.include(tt.subj)) {
-                    creator.putEntry(tt);
-                    processedFilenames.movedTerms ++;
-                    continue;
-                }
-                
-                if (processedFilenames.createSelectedFiles) {
-                    // They are all to be sorted.
-                    boolean found = false;
-                    for (Map.Entry<IndexPeeker, TermEntryFileWriter> entry : writers.entrySet()) {
-                        if (entry.getKey().include(tt.subj)) {
-                            entry.getValue().write(tt);
-                            found = true;
-                            break;
-                        }
-                    }
-                    if (found) {
-                        continue;                       
+		for (String s : new Iterable<String>() {
+			@Override
+			public Iterator<String> iterator() {
+				return processedFilenames;
+			}
+		}) {
+			System.out.println("File: " + s);
+			File file = new File(s);
+			FileInputStream fileInputStream;
+			try {
+				fileInputStream = new FileInputStream(file);
+			} catch (FileNotFoundException e) {
+				e.printStackTrace();
+				return true;
+			}
+			if (creator == null) {
+				creator = new DirectoryCreator(directory);
+			}
+			TermEntryReaderIterator teri = new TermEntryReaderIterator(new DataInputStream(fileInputStream));
+			Iterator<TermEntry> iterator = teri.iterator();
+			while (iterator.hasNext()) {
+				TermEntry tt = iterator.next();
+				boolean isANewFile = false;
+				for (int i = 0; i < newFilesToMerge.length; i++) {
+					if (newFilesToMerge[i].equals(s)) {
+						isANewFile = true;
+						break;
+					}
+				}
+				if (isANewFile && tt.toBeDropped()) {
+					 System.out.println("Ignoring term " + tt);
+					 continue;
+				}
+				totalTerms ++;
+				if (creatorPeeker.include(tt.subj)) {
+					creator.putEntry(tt);
+					processedFilenames.movedTerms ++;
+					continue;
+				}
+
+				if (processedFilenames.createSelectedFiles) {
+					// They are all to be sorted.
+					boolean found = false;
+					for (Map.Entry<IndexPeeker, TermEntryFileWriter> entry : writers.entrySet()) {
+						if (entry.getKey().include(tt.subj)) {
+							entry.getValue().write(tt);
+							found = true;
+							break;
+						}
+					}
+					if (found) {
+						continue;
 					} else if (writers.size() < 3 || writers.size() < 10 * (filteredFilesToMerge.length - 1)) {
-                        lastSelected ++;
-                        String selectedFilename = SELECTED + lastSelected;
-                        IndexPeeker p = new IndexPeeker(directory);
-                        TermEntryFileWriter t = new TermEntryFileWriter(teri.getHeader(),
-                                new File(directory, selectedFilename));
-                        if (p.include(tt.subj)) {
-                            writers.put(p, t);
-                            t.write(tt);
-                        }
-                        continue;
-                    }
-                }
-                if (notMerged == null) {
-                    lastFoundNumber ++;
-                    String restFilename = processedFilenames.restBase + lastFoundNumber;
-                    notMerged = new TermEntryFileWriter(teri.getHeader(), new File(directory, restFilename));
-                }
-                notMerged.write(tt);
-                if (notMerged.isFull()) {
-                    notMerged.close();
-                    notMerged = null;
-                }
-            }
-            if (processedFilenames.processingSelectedFile) {
-                System.out.println("Items: " + processedFilenames.movedTerms +
-                        " Entries: " + creator.size());
-            }
-            toBeRemoved.add(file);
-        }
-        if (notMerged != null) {
-            notMerged.close();
-            notMerged = null;
-        }
-        for (File file : toBeRemoved) {
-            System.out.println("Removing file " + file);
-            file.delete();
-        }
-        if (creator != null) {
-            creator.done();
-            creator = null;
-        } else {
-        	return false;
-        }
-        double percentage = new Double(processedFilenames.movedTerms).doubleValue() / new Double(totalTerms).doubleValue() * 100.0;
-        System.out.format("Processed %d/%d terms (%.2f%%).%n",
-                          processedFilenames.movedTerms,
-                          totalTerms,
-                          percentage);
-        return true;
-    }
+						lastSelected ++;
+						String selectedFilename = SELECTED + lastSelected;
+						IndexPeeker p = new IndexPeeker(directory);
+						TermEntryFileWriter t = new TermEntryFileWriter(teri.getHeader(),
+								new File(directory, selectedFilename));
+						if (p.include(tt.subj)) {
+							writers.put(p, t);
+							t.write(tt);
+						}
+						continue;
+					}
+				}
+				if (notMerged == null) {
+					lastFoundNumber ++;
+					String restFilename = processedFilenames.restBase + lastFoundNumber;
+					notMerged = new TermEntryFileWriter(teri.getHeader(), new File(directory, restFilename));
+				}
+				notMerged.write(tt);
+				if (notMerged.isFull()) {
+					notMerged.close();
+					notMerged = null;
+				}
+			}
+			if (processedFilenames.processingSelectedFile) {
+				System.out.println("Items: " + processedFilenames.movedTerms +
+						" Entries: " + creator.size());
+			}
+			toBeRemoved.add(file);
+		}
+		if (notMerged != null) {
+			notMerged.close();
+			notMerged = null;
+		}
+		for (File file : toBeRemoved) {
+			System.out.println("Removing file " + file);
+			file.delete();
+		}
+		if (creator != null) {
+			creator.done();
+			creator = null;
+		} else {
+			return false;
+		}
+		double percentage = new Double(processedFilenames.movedTerms).doubleValue() / new Double(totalTerms).doubleValue() * 100.0;
+		System.out.format("Processed %d/%d terms (%.2f%%).%n",
+						  processedFilenames.movedTerms,
+						  totalTerms,
+						  percentage);
+		return true;
+	}
 }

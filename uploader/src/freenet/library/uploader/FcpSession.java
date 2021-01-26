@@ -10,76 +10,76 @@ import net.pterodactylus.fcp.FcpMessage;
 import net.pterodactylus.fcp.NodeHello;
 
 public class FcpSession {
-    
-    private FcpAdapter closeListener;
-    private FcpConnection connection;
-    private int exitStatus;
 
-    public FcpSession() throws IllegalStateException, IOException {
-        this("SpiderMerger");
-    }
-    
-    public FcpSession(final String clientName) throws IllegalStateException, IOException {
-        exitStatus = 0;
+	private FcpAdapter closeListener;
+	private FcpConnection connection;
+	private int exitStatus;
 
-        closeListener = new FcpAdapter() {
-            public void connectionClosed(FcpConnection fcpConnection, Throwable throwable) {
-                System.out.println("Connection Closed - Aborting.");
-                System.exit(1);
-            }
-        };
+	public FcpSession() throws IllegalStateException, IOException {
+		this("SpiderMerger");
+	}
 
-        connection = new FcpConnection("127.0.0.1");
-        connection.connect();
-        final FcpMessage hello = new ClientHello(clientName);
-        FcpAdapter helloListener = new FcpAdapter() {
-                public void receivedNodeHello(FcpConnection c, NodeHello nh) {
-                    synchronized (hello) {
-                        hello.notify();
-                    }
-                }
+	public FcpSession(final String clientName) throws IllegalStateException, IOException {
+		exitStatus = 0;
 
-                public void receivedCloseConnectionDuplicateClientName(FcpConnection fcpConnection, CloseConnectionDuplicateClientName closeConnectionDuplicateClientName) {
-                    System.out.println("Another " + clientName + " connected - Aborting.");
-                    System.exit(1);
-                }
-            };
-        connection.addFcpListener(helloListener);
+		closeListener = new FcpAdapter() {
+			public void connectionClosed(FcpConnection fcpConnection, Throwable throwable) {
+				System.out.println("Connection Closed - Aborting.");
+				System.exit(1);
+			}
+		};
 
-        connection.addFcpListener(closeListener);
+		connection = new FcpConnection("127.0.0.1");
+		connection.connect();
+		final FcpMessage hello = new ClientHello(clientName);
+		FcpAdapter helloListener = new FcpAdapter() {
+				public void receivedNodeHello(FcpConnection c, NodeHello nh) {
+					synchronized (hello) {
+						hello.notify();
+					}
+				}
 
-        synchronized (hello) {
-            try {
-                connection.sendMessage(hello);
-                hello.wait();
-            } catch (InterruptedException e) {
-                System.err.println("Waiting for connection interrupted.");
-                exitStatus = 1;
-                return;
-            } finally {
-                connection.removeFcpListener(helloListener);
-            }
-        }
-        helloListener = null;
-        System.out.println("Connected");
-    }
-    
-    public void close() {
-        if (closeListener != null) {
-            connection.removeFcpListener(closeListener);
-            closeListener = null;
-        }
-        if (connection != null) {
-            connection.close();
-            connection = null;
-        }
-    }
+				public void receivedCloseConnectionDuplicateClientName(FcpConnection fcpConnection, CloseConnectionDuplicateClientName closeConnectionDuplicateClientName) {
+					System.out.println("Another " + clientName + " connected - Aborting.");
+					System.exit(1);
+				}
+			};
+		connection.addFcpListener(helloListener);
 
-    public FcpConnection getConnection() {
-        return connection;
-    }
+		connection.addFcpListener(closeListener);
 
-    public int getStatus() {
-        return exitStatus;
-    }
+		synchronized (hello) {
+			try {
+				connection.sendMessage(hello);
+				hello.wait();
+			} catch (InterruptedException e) {
+				System.err.println("Waiting for connection interrupted.");
+				exitStatus = 1;
+				return;
+			} finally {
+				connection.removeFcpListener(helloListener);
+			}
+		}
+		helloListener = null;
+		System.out.println("Connected");
+	}
+
+	public void close() {
+		if (closeListener != null) {
+			connection.removeFcpListener(closeListener);
+			closeListener = null;
+		}
+		if (connection != null) {
+			connection.close();
+			connection = null;
+		}
+	}
+
+	public FcpConnection getConnection() {
+		return connection;
+	}
+
+	public int getStatus() {
+		return exitStatus;
+	}
 }

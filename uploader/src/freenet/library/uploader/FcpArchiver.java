@@ -31,7 +31,7 @@ import freenet.library.util.exec.SimpleProgress;
 import freenet.library.util.exec.TaskAbortException;
 
 
-public class FcpArchiver<T,  S extends ObjectStreamWriter & ObjectStreamReader> 
+public class FcpArchiver<T,  S extends ObjectStreamWriter & ObjectStreamReader>
 		implements LiveArchiver<T, freenet.library.util.exec.SimpleProgress> {
 	private FcpConnection connection;
 	private File cacheDir;
@@ -47,9 +47,9 @@ public class FcpArchiver<T,  S extends ObjectStreamWriter & ObjectStreamReader>
 	private Map<String, PushAdapter> stillRunning =
 			new HashMap<String, PushAdapter>();
 	private Thread cleanupThread;
-	
 
-	public FcpArchiver(FcpConnection fcpConnection, 
+
+	public FcpArchiver(FcpConnection fcpConnection,
 					   File directory,
 					   S rw,
 					   String mime, int s,
@@ -60,7 +60,7 @@ public class FcpArchiver<T,  S extends ObjectStreamWriter & ObjectStreamReader>
 		writer = rw;
 		priorityLevel = pl;
 	}
-	
+
 	private net.pterodactylus.fcp.Priority getPriority() {
 		switch (priorityLevel) {
 		case Interactive:
@@ -68,7 +68,7 @@ public class FcpArchiver<T,  S extends ObjectStreamWriter & ObjectStreamReader>
 		case Bulk:
 			return net.pterodactylus.fcp.Priority.bulkSplitfile;
 		}
-		return net.pterodactylus.fcp.Priority.bulkSplitfile;		
+		return net.pterodactylus.fcp.Priority.bulkSplitfile;
 	}
 
 	@Override
@@ -84,8 +84,8 @@ public class FcpArchiver<T,  S extends ObjectStreamWriter & ObjectStreamReader>
 	}
 
 	/**
-	 * Initial implementation, fetch everything from the cache. This means 
-	 * that we cannot take over someone else's index. 
+	 * Initial implementation, fetch everything from the cache. This means
+	 * that we cannot take over someone else's index.
 	 */
 	@Override
 	public void pullLive(freenet.library.io.serial.Serialiser.PullTask<T> task,
@@ -103,7 +103,7 @@ public class FcpArchiver<T,  S extends ObjectStreamWriter & ObjectStreamReader>
 			try {
 				if(cacheDir != null && cacheDir.exists() && cacheDir.canRead()) {
 					File cached = new File(cacheDir, cacheKey);
-					if(cached.exists() && 
+					if(cached.exists() &&
 							cached.length() != 0 &&
 							cached.canRead()) {
 						InputStream is = new FileInputStream(cached);
@@ -111,7 +111,7 @@ public class FcpArchiver<T,  S extends ObjectStreamWriter & ObjectStreamReader>
 						is.close();
 					}
 				}
-					
+
 				if (progress != null) {
 					progress.addPartKnown(0, true);
 				}
@@ -127,12 +127,12 @@ public class FcpArchiver<T,  S extends ObjectStreamWriter & ObjectStreamReader>
 				task.meta +
 				" in the cache.");
 	}
-	
+
 	private static long lastUriMillis = 0;
 
 	private class PushAdapter extends FcpAdapter {
-    	private ClientPut putter;
-    	private String identifier;
+		private ClientPut putter;
+		private String identifier;
 		private String token;
 		private FreenetURI uri;
 		private int progressTotal;
@@ -141,17 +141,17 @@ public class FcpArchiver<T,  S extends ObjectStreamWriter & ObjectStreamReader>
 		private long started;
 
 		public PushAdapter(ClientPut p, String i, String t) {
-    		putter = p;
-    		identifier = i;
-    		token = t;
-    		uri = null;
-    		progressTotal = 0;
-    		progressCompleted = 0;
-    		synchronized (stillRunning) {
-    			stillRunning.put(token, this);
+			putter = p;
+			identifier = i;
+			token = t;
+			uri = null;
+			progressTotal = 0;
+			progressCompleted = 0;
+			synchronized (stillRunning) {
+				stillRunning.put(token, this);
 				printLeft();
-    		}
-    		started = System.currentTimeMillis();
+			}
+			started = System.currentTimeMillis();
 		}
 
 		/**
@@ -176,17 +176,17 @@ public class FcpArchiver<T,  S extends ObjectStreamWriter & ObjectStreamReader>
 		}
 
 		@Override
-        public void receivedPutSuccessful(FcpConnection c, PutSuccessful ps) {
+		public void receivedPutSuccessful(FcpConnection c, PutSuccessful ps) {
 			assert c == connection;
 			assert ps != null;
 			if (!identifier.equals(ps.getIdentifier()))
 				return;
 			System.out.println("receivedPutSuccessful for " + token + at());
 			markDone();
-    	}
-    	
-    	@Override
-        public void receivedPutFetchable(FcpConnection c, PutFetchable pf) {
+		}
+
+		@Override
+		public void receivedPutFetchable(FcpConnection c, PutFetchable pf) {
 			assert c == connection;
 			assert pf != null;
 			if (!identifier.equals(pf.getIdentifier()))
@@ -195,26 +195,26 @@ public class FcpArchiver<T,  S extends ObjectStreamWriter & ObjectStreamReader>
 			synchronized (this) {
 				this.notifyAll();
 			}
-    	}
-    	
+		}
 
-    	@Override
-        public void receivedPutFailed(FcpConnection c, PutFailed pf) {
+
+		@Override
+		public void receivedPutFailed(FcpConnection c, PutFailed pf) {
 			assert c == connection;
 			assert pf != null;
 			if (!identifier.equals(pf.getIdentifier()))
 				return;
-            synchronized (putter) {
-                putter.notify();
-            }
+			synchronized (putter) {
+				putter.notify();
+			}
 			System.err.println("receivedPutFailed for " + token + at() + " aborting.");
-    		markDone();
-    		System.exit(1);
-        }
-        
-    	@Override
-        public void receivedSimpleProgress(FcpConnection c,
-        		net.pterodactylus.fcp.SimpleProgress sp) {
+			markDone();
+			System.exit(1);
+		}
+
+		@Override
+		public void receivedSimpleProgress(FcpConnection c,
+				net.pterodactylus.fcp.SimpleProgress sp) {
 			assert c == connection;
 			assert sp != null;
 			if (!identifier.equals(sp.getIdentifier()))
@@ -226,10 +226,10 @@ public class FcpArchiver<T,  S extends ObjectStreamWriter & ObjectStreamReader>
 			progressCompleted = sp.getSucceeded();
 			progressTotal = sp.getTotal();
 			printLeft();
-    	}
+		}
 
-    	public void receivedURIGenerated(FcpConnection c, URIGenerated uriGenerated) {
-    		assert c == connection;
+		public void receivedURIGenerated(FcpConnection c, URIGenerated uriGenerated) {
+			assert c == connection;
 			assert uriGenerated != null;
 			if (!identifier.equals(uriGenerated.getIdentifier()))
 				return;
@@ -243,17 +243,17 @@ public class FcpArchiver<T,  S extends ObjectStreamWriter & ObjectStreamReader>
 			} catch (MalformedURLException e) {
 				System.err.println("receivedURIGenerated failed with URI: " + uriGenerated.getURI() +
 						" for " + token + at() + " aborting.");
-	    		markDone();
-	    		System.exit(1);
+				markDone();
+				System.exit(1);
 			}
 			synchronized (this) {
 				this.notifyAll();
 			}
 			lastUriMillis = System.currentTimeMillis();
-    	}
+		}
 
-    	private void markDone() {
-    		done = true;
+		private void markDone() {
+			done = true;
 			synchronized (this) {
 				this.notifyAll();
 			}
@@ -261,26 +261,26 @@ public class FcpArchiver<T,  S extends ObjectStreamWriter & ObjectStreamReader>
 			synchronized (stillRunning) {
 				stillRunning.notifyAll();
 			}
-        }
-    	
-    	private void forgetAboutThis() {
-    		assert done;
+		}
+
+		private void forgetAboutThis() {
+			assert done;
 			connection.removeFcpListener(this);
 			synchronized (stillRunning) {
 				stillRunning.remove(token);
 				stillRunning.notifyAll();
 				printLeft();
 			}
-        }
+		}
 
-    	boolean isDone() {
-    		return done;
-    	}
-    	
-    	FreenetURI getURI() {
-    		return uri;
-    	}
-    };
+		boolean isDone() {
+			return done;
+		}
+
+		FreenetURI getURI() {
+			return uri;
+		}
+	};
 
 
 	private static int counter = 1;
@@ -305,13 +305,13 @@ public class FcpArchiver<T,  S extends ObjectStreamWriter & ObjectStreamReader>
 		final String identifier = "FcpArchiver" + counter;
 		final String token = "FcpArchiverPushLive" + counter;
 		counter++;
-        final ClientPut putter = new ClientPut("CHK@", identifier);
-        putter.setClientToken(token);
-        putter.setEarlyEncode(true);
-        putter.setPriority(getPriority());
-        putter.setVerbosity(Verbosity.ALL);
-        
-        // Writing to file.
+		final ClientPut putter = new ClientPut("CHK@", identifier);
+		putter.setClientToken(token);
+		putter.setEarlyEncode(true);
+		putter.setPriority(getPriority());
+		putter.setVerbosity(Verbosity.ALL);
+
+		// Writing to file.
 		File file = new File(cacheDir, token);
 		FileOutputStream fileOut = null;
 		try {
@@ -327,31 +327,31 @@ public class FcpArchiver<T,  S extends ObjectStreamWriter & ObjectStreamReader>
 			}
 		}
 
-        final long dataLength = file.length();
+		final long dataLength = file.length();
 		putter.setDataLength(dataLength);
-        
-        FileInputStream in;
+
+		FileInputStream in;
 		try {
 			in = new FileInputStream(file);
 		} catch (FileNotFoundException e) {
 			throw new TaskAbortException("Cannot read from file " + file, e);
 		}
-        putter.setPayloadInputStream(in);
+		putter.setPayloadInputStream(in);
 
 		PushAdapter putterListener = new PushAdapter(putter, identifier, token);
-        connection.addFcpListener(putterListener);
-        try {
-        	if (progress != null) {
-        		progress.addPartKnown(1, true);
-        	}
+		connection.addFcpListener(putterListener);
+		try {
+			if (progress != null) {
+				progress.addPartKnown(1, true);
+			}
 			connection.sendMessage(putter);
 			in.close();
 		} catch (IOException e) {
 			throw new TaskAbortException("Cannot send message", e);
 		}
 
-        // Wait for identifier
-        synchronized (putterListener) {
+		// Wait for identifier
+		synchronized (putterListener) {
 			while (putterListener.getURI() == null) {
 				try {
 					putterListener.wait();
@@ -361,55 +361,55 @@ public class FcpArchiver<T,  S extends ObjectStreamWriter & ObjectStreamReader>
 			}
 		}
 
-        if (progress != null) {
-        	progress.addPartDone();
-        }
-        task.meta = putterListener.getURI();
+		if (progress != null) {
+			progress.addPartDone();
+		}
+		task.meta = putterListener.getURI();
 
-        // Moving file.
-        file.renameTo(new File(cacheDir, putterListener.getURI().toString()));
+		// Moving file.
+		file.renameTo(new File(cacheDir, putterListener.getURI().toString()));
 
-		startCleanupThread();        
+		startCleanupThread();
 	}
 
 	private synchronized void startCleanupThread() {
 		if (cleanupThread == null) {
 			cleanupThread = new Thread(
-		        new Runnable() {
-		            public void run () {
-		            	boolean moreJobs = false;
-		            	do {
-		            		if (moreJobs) {
-				        		synchronized (stillRunning) {
-				        			try {
+				new Runnable() {
+					public void run () {
+						boolean moreJobs = false;
+						do {
+							if (moreJobs) {
+								synchronized (stillRunning) {
+									try {
 										stillRunning.wait();
 									} catch (InterruptedException e) {
 										// TODO Auto-generated catch block
 										e.printStackTrace();
 									}
-				        		}
-			            		Set<PushAdapter> copy;
-			            		synchronized (stillRunning) {
-			            			copy = new HashSet<PushAdapter>(stillRunning.values());
-			            		}
-		        				for (PushAdapter pa : copy) {
-		        					if (pa.isDone()) {
-		        						pa.forgetAboutThis();
-		        					}
-		        				}
-		            		}
-			        		synchronized (stillRunning) {
-			        			moreJobs = !stillRunning.isEmpty();
-			        		}
-		            	} while (moreJobs);
-		        		removeCleanupThread();
-		            }
-		        }
-		    );
+								}
+								Set<PushAdapter> copy;
+								synchronized (stillRunning) {
+									copy = new HashSet<PushAdapter>(stillRunning.values());
+								}
+								for (PushAdapter pa : copy) {
+									if (pa.isDone()) {
+										pa.forgetAboutThis();
+									}
+								}
+							}
+							synchronized (stillRunning) {
+								moreJobs = !stillRunning.isEmpty();
+							}
+						} while (moreJobs);
+						removeCleanupThread();
+					}
+				}
+			);
 			cleanupThread.start();
 		}
 	}
-	
+
 	private synchronized void removeCleanupThread() {
 		cleanupThread = null;
 	}

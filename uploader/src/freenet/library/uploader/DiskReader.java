@@ -23,7 +23,7 @@ import freenet.library.util.exec.TaskAbortException;
  * @param <T>
  * @param <S>
  */
-public class DiskReader<T,  S extends ObjectStreamWriter & ObjectStreamReader> 
+public class DiskReader<T,  S extends ObjectStreamWriter & ObjectStreamReader>
 		implements LiveArchiver<T, freenet.library.util.exec.SimpleProgress> {
 	private File cacheDir;
 	private ObjectStreamReader<T> reader;
@@ -35,7 +35,7 @@ public class DiskReader<T,  S extends ObjectStreamWriter & ObjectStreamReader>
 		cacheDir = directory;
 		reader = rw;
 	}
-	
+
 	@Override
 	public void pull(freenet.library.io.serial.Serialiser.PullTask<T> task)
 			throws TaskAbortException {
@@ -49,7 +49,7 @@ public class DiskReader<T,  S extends ObjectStreamWriter & ObjectStreamReader>
 	}
 
 	/**
-	 * Fetch everything from the disk cache. 
+	 * Fetch everything from the disk cache.
 	 */
 	@Override
 	public void pullLive(freenet.library.io.serial.Serialiser.PullTask<T> task,
@@ -67,7 +67,7 @@ public class DiskReader<T,  S extends ObjectStreamWriter & ObjectStreamReader>
 			try {
 				if(cacheDir != null && cacheDir.exists() && cacheDir.canRead()) {
 					File cached = new File(cacheDir, cacheKey);
-					if(cached.exists() && 
+					if(cached.exists() &&
 							cached.length() != 0 &&
 							cached.canRead()) {
 						InputStream is = new FileInputStream(cached);
@@ -75,7 +75,7 @@ public class DiskReader<T,  S extends ObjectStreamWriter & ObjectStreamReader>
 						is.close();
 					}
 				}
-					
+
 				if (progress != null) {
 					progress.addPartKnown(0, true);
 				}
@@ -95,16 +95,16 @@ public class DiskReader<T,  S extends ObjectStreamWriter & ObjectStreamReader>
 	@Override
 	public void pushLive(freenet.library.io.serial.Serialiser.PushTask<T> task,
 			SimpleProgress progress) throws TaskAbortException {
-    	if (progress != null) {
-    		progress.addPartKnown(1, true);
-    	}
+		if (progress != null) {
+			progress.addPartKnown(1, true);
+		}
 
-    	// This is a one-time read so we don't care about the result.
+		// This is a one-time read so we don't care about the result.
 		task.data = null;
-		
-        if (progress != null) {
-        	progress.addPartDone();
-        }
+
+		if (progress != null) {
+			progress.addPartDone();
+		}
 
 	}
 

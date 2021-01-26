@@ -60,7 +60,7 @@ import net.pterodactylus.fcp.Verbosity;
  * FINE: Stats for fetches and overview of contents of fetched keys. Minor events.
  * FINER: Queue additions, length, ETA, rotations.
  * FINEST: Really minor events.
- * 
+ *
  * Conventions:
  * * do*() methods accept a page, do something and deliver the page to a queue (depending on the result).
  * * doHandle*() methods do very little before delivering to a queue.
@@ -81,7 +81,7 @@ class DownloadOneEdition {
 
 	/**
 	 * Thread pool for executors that are not doing Freenet operations.
-	 * 
+	 *
 	 * Mostly idle except when busy reading and parsing pages.
 	 */
 	private ScheduledExecutorService otherExecutors;
@@ -188,7 +188,7 @@ class DownloadOneEdition {
 
 		/**
 		 * Calculate the time until the next attempt to fetch this page.
-		 * 
+		 *
 		 * The timeToNextFetchAttempt is increased by a random number between 0 and
 		 * RANGE_ADD_DEFER_TIME. Increasing the time will eventually reduce the
 		 * frequency of fetching unfetchables in favor of re-fetching.
@@ -241,7 +241,7 @@ class DownloadOneEdition {
 			return null;
 		}
 	}
-			
+
 
 
 	private Random random = new Random();
@@ -282,27 +282,27 @@ class DownloadOneEdition {
 		StringBuffer sb = new StringBuffer();
 		sb.append(statisticsLine("toParse", counterParseSuccess, counterParseFailed, toParse));
 		sb.append(statisticsLine("toFetch", counterFetchSuccess, counterFetchFailed, toFetch));
-		sb.append(statisticsLine("toFetchUnfetchable", 
-					 counterFetchUnfetchableSuccess, counterFetchUnfetchableFailed, 
+		sb.append(statisticsLine("toFetchUnfetchable",
+					 counterFetchUnfetchableSuccess, counterFetchUnfetchableFailed,
 					 toFetchUnfetchable));
 		int counterCopyUploadUnfetchable = counterCopyUploadUnfetchableSuccess + counterCopyUploadUnfetchableFailed;
 		if (counterCopyUploadUnfetchable > 0) {
-			sb.append(new Formatter().format(STATISTICS_FORMAT_PREFIX, 
-							 "CopyUploadUnfetchable", 
+			sb.append(new Formatter().format(STATISTICS_FORMAT_PREFIX,
+							 "CopyUploadUnfetchable",
 							 counterCopyUploadUnfetchable,
 							 counterCopyUploadUnfetchableSuccess,
 							 counterCopyUploadUnfetchableFailed)).append("\n");
 		}
-		sb.append(statisticsLine("toRefetch", 
-					 counterRefetchSuccess, counterRefetchFailed, 
+		sb.append(statisticsLine("toRefetch",
+					 counterRefetchSuccess, counterRefetchFailed,
 					 toRefetch));
-		sb.append(statisticsLine("toUploadUnfetchable", 
-					 counterUploadUnfetchableSuccess, counterUploadUnfetchableFailed, 
+		sb.append(statisticsLine("toUploadUnfetchable",
+					 counterUploadUnfetchableSuccess, counterUploadUnfetchableFailed,
 					 toUploadUnfetchable));
 		int counterRefetchUpload = counterRefetchUploadSuccess + counterRefetchUploadFailed;
 		if (counterRefetchUpload > 0) {
-			sb.append(new Formatter().format(STATISTICS_FORMAT_PREFIX, 
-							 "RefetchUploadUnfetchable", 
+			sb.append(new Formatter().format(STATISTICS_FORMAT_PREFIX,
+							 "RefetchUploadUnfetchable",
 							 counterRefetchUpload,
 							 counterRefetchUploadSuccess,
 							 counterRefetchUploadFailed)).append("\n");
@@ -1279,11 +1279,11 @@ class DownloadOneEdition {
 	/**
 	 * Starts the ball rolling for the FCPexecutors and otherExecutors.
 	 *
-	 * @param numThreads   Number of threads for FCPexecutors.
-	 * @param u            URI pointing to the root of the tree.
+	 * @param numThreads Number of threads for FCPexecutors.
+	 * @param u URI pointing to the root of the tree.
 	 * @param morePagesDir A directory where more pages can be found (or null). If
-	 *                     non-null, this directory is searched for pages to upload
-	 *                     if the download fails.
+	 * non-null, this directory is searched for pages to upload
+	 * if the download fails.
 	 */
 	private void run2(int numThreads, FreenetURI u, File morePagesDir) {
 		morePagesDirectory = morePagesDir;

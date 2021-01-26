@@ -28,9 +28,9 @@ import static freenet.library.uploader.DirectoryUploader.LAST_URL_FILENAME;
 import static freenet.library.uploader.Merger.TO_BE_DELETED;
 
 public class ScanForTermsToBeDeleted {
-    ProtoIndexSerialiser srl = null;
-    String lastDiskIndexName;
-    ProtoIndex idxFreenet;
+	ProtoIndexSerialiser srl = null;
+	String lastDiskIndexName;
+	ProtoIndex idxFreenet;
 	private FreenetURI lastUploadURI;
 	File whereToWrite;
 	private File directory;
@@ -41,7 +41,7 @@ public class ScanForTermsToBeDeleted {
 		directory = dir;
 		lastFoundNumber = lastFound;
 		openedFile = null;
-        try {
+		try {
 			lastUploadURI = new FreenetURI(readStringFrom(new File(LAST_URL_FILENAME)));
 		} catch (MalformedURLException e) {
 			throw new RuntimeException("File contents of " + LAST_URL_FILENAME + " invalid.", e);
@@ -51,14 +51,14 @@ public class ScanForTermsToBeDeleted {
 	}
 
 	private void writeTermEntry(TermPageEntry tpe) {
-        if (openedFile == null) {
-            lastFoundNumber ++;
-            String restFilename = TO_BE_DELETED + lastFoundNumber;
-            
-            Map<String, String> emptyHeader = new HashMap<String, String>();
+		if (openedFile == null) {
+			lastFoundNumber ++;
+			String restFilename = TO_BE_DELETED + lastFoundNumber;
+
+			Map<String, String> emptyHeader = new HashMap<String, String>();
 			openedFile = new TermEntryFileWriter(emptyHeader , new File(directory, restFilename));
-        }
-        openedFile.write(tpe);
+		}
+		openedFile.write(tpe);
 	}
 
 	public void run() throws TaskAbortException {
@@ -119,43 +119,43 @@ public class ScanForTermsToBeDeleted {
 	}
 
 	private void setupFreenetCacheDir() {
-    	File dir = new File(UploaderPaths.LIBRARY_CACHE);
-    	dir.mkdir();
-    }
+		File dir = new File(UploaderPaths.LIBRARY_CACHE);
+		dir.mkdir();
+	}
 
-    /**
-     * Setup the serialisers for reading from files. These convert
-     * tree nodes to and from blocks on Freenet, essentially.
-     */
-    private void makeFreenetSerialisers() {
-        if(srl == null) {
-            srl = ProtoIndexSerialiser.forIndex(lastUploadURI, Priority.Bulk);
-            LiveArchiver<Map<String,Object>,SimpleProgress> archiver = 
-                (LiveArchiver<Map<String,Object>,SimpleProgress>)(srl.getChildSerialiser());
-            ProtoIndexComponentSerialiser leafsrl = ProtoIndexComponentSerialiser.get(ProtoIndexComponentSerialiser.FMT_DEFAULT, archiver);
-            if(lastUploadURI == null) {
-                try {
+	/**
+	 * Setup the serialisers for reading from files. These convert
+	 * tree nodes to and from blocks on Freenet, essentially.
+	 */
+	private void makeFreenetSerialisers() {
+		if(srl == null) {
+			srl = ProtoIndexSerialiser.forIndex(lastUploadURI, Priority.Bulk);
+			LiveArchiver<Map<String,Object>,SimpleProgress> archiver =
+				(LiveArchiver<Map<String,Object>,SimpleProgress>)(srl.getChildSerialiser());
+			ProtoIndexComponentSerialiser leafsrl = ProtoIndexComponentSerialiser.get(ProtoIndexComponentSerialiser.FMT_DEFAULT, archiver);
+			if(lastUploadURI == null) {
+				try {
 					idxFreenet = new ProtoIndex(new FreenetURI("CHK@"), "test", null, null, 0L);
 				} catch (MalformedURLException e) {
 					throw new AssertionError(e);
 				}
-                // FIXME more hacks: It's essential that we use the
-                // same FreenetArchiver instance here.
-                leafsrl.setSerialiserFor(idxFreenet);
-            } else {
-                try {
-                    PullTask<ProtoIndex> pull = new PullTask<ProtoIndex>(lastUploadURI);
-                    System.out.println("Pulling previous index "+lastUploadURI+" but unsure if it is needed.");
-                    srl.pull(pull);
-                    idxFreenet = pull.data;
-                    if(idxFreenet.getSerialiser().getLeafSerialiser() != archiver)
-                        throw new IllegalStateException("Different serialiser: "+idxFreenet.getSerialiser()+" should be "+leafsrl);
-                } catch (TaskAbortException e) {
-                    System.err.println("Failed to download previous index for spider update: "+e);
-                    e.printStackTrace();
-                    return;
-                }
-            }
-        }
-    }
+				// FIXME more hacks: It's essential that we use the
+				// same FreenetArchiver instance here.
+				leafsrl.setSerialiserFor(idxFreenet);
+			} else {
+				try {
+					PullTask<ProtoIndex> pull = new PullTask<ProtoIndex>(lastUploadURI);
+					System.out.println("Pulling previous index "+lastUploadURI+" but unsure if it is needed.");
+					srl.pull(pull);
+					idxFreenet = pull.data;
+					if(idxFreenet.getSerialiser().getLeafSerialiser() != archiver)
+						throw new IllegalStateException("Different serialiser: "+idxFreenet.getSerialiser()+" should be "+leafsrl);
+				} catch (TaskAbortException e) {
+					System.err.println("Failed to download previous index for spider update: "+e);
+					e.printStackTrace();
+					return;
+				}
+			}
+		}
+	}
 }

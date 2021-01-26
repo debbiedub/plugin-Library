@@ -19,21 +19,21 @@ import freenet.library.io.FreenetURI;
  * Class to download the entire index.
  */
 public class DownloadAll {
-    public static void main(String[] argv) {
-    	if (argv.length > 1 && argv[0].equals("--move")) {
-    		try {
+	public static void main(String[] argv) {
+		if (argv.length > 1 && argv[0].equals("--move")) {
+			try {
 				new FetchAllOnce(new FreenetURI(argv[1])).doMove();
 			} catch (MalformedURLException e) {
 				e.printStackTrace();
 				System.exit(2);
 			}
-    	} else {
-    		try {
+		} else {
+			try {
 				new FetchAllOnce(new FreenetURI(argv[0])).doDownload();
 			} catch (MalformedURLException e) {
 				e.printStackTrace();
 				System.exit(2);
 			}
-    	}
-    }
+		}
+	}
 }
