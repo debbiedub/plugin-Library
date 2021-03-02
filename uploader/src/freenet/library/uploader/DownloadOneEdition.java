@@ -275,6 +275,8 @@ class DownloadOneEdition {
 	private int counterRefetchUploadSuccess = 0;
 	private int counterRefetchUploadFailed = 0;
 
+	private int edition;
+
 
 	private static String STATISTICS_FORMAT_PREFIX = "%-24s%7d%7d%7d";
 
@@ -313,7 +315,7 @@ class DownloadOneEdition {
 		if (unfetchables.size() > 0) {
 			sb.append("Unfetchables from previous run: " + unfetchables.size() + "\n");
 		}
-		logger.info("Statistics:\n" + sb.toString() + "End Statistics.");
+		logger.info("Statistics for " + edition + ":\n" + sb.toString() + "End Statistics.");
 	}
 
 	private static String STATISTICS_FORMAT = STATISTICS_FORMAT_PREFIX + "%6d%5d%5d%6d%6d%5d%5d\n";
@@ -1367,6 +1369,7 @@ class DownloadOneEdition {
 				connection.sendMessage(subscriber);
 				subscriber.wait(); // Wait until found
 				doHandleNew(new Page(newUris[0], null));
+				edition = editions[0];
 				subscriber.wait(); // Work until next one found
 				logger.info("Next edition seen.");
 			} catch (InterruptedException e) {
