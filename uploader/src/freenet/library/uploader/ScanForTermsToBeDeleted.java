@@ -8,7 +8,6 @@ import java.net.MalformedURLException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.function.BiConsumer;
 
 import freenet.library.Priority;
 import freenet.library.index.ProtoIndex;
@@ -36,6 +35,7 @@ public class ScanForTermsToBeDeleted {
 	private File directory;
 	private int lastFoundNumber;
 	private TermEntryFileWriter openedFile;
+	private static int CREATED_FILES = 3;
 
 	public ScanForTermsToBeDeleted(File dir, int lastFound) {
 		directory = dir;
@@ -63,6 +63,7 @@ public class ScanForTermsToBeDeleted {
 
 	public void run() throws TaskAbortException {
 		Map<String, Long> seenUsks = new HashMap<String, Long>();
+		int countFilledFiles = 0;
 		int count = 0;
 		for (Iterator<String> i = idxFreenet.ttab.keySetAutoDeflate().iterator();
 				i.hasNext();) {
@@ -109,7 +110,10 @@ public class ScanForTermsToBeDeleted {
 			if (openedFile != null && openedFile.isFull()) {
 				openedFile.close();
 				openedFile = null;
-				break;
+				countFilledFiles ++;
+				if (countFilledFiles >= CREATED_FILES) {
+					break;
+				}
 			}
 		}
 		if (openedFile != null) {
