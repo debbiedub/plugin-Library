@@ -134,5 +134,9 @@ public class TermEntryTest extends TestCase {
 		assertTrue(TE("a1b2c3d4e5").toBeDropped());
 		assertFalse(TE("conventional").toBeDropped());
 		assertTrue(TE("abcdef12345fedcba54321aabbee").toBeDropped());
+		assertFalse(TE("biocatálisis").toBeDropped());
+		assertFalse(TE("biodégradables").toBeDropped());
+		assertFalse(TE("bioéconomie").toBeDropped());
+		assertFalse(TE("biologics").toBeDropped());
 	}
 }
