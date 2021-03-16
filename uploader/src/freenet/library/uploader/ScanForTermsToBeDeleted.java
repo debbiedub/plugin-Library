@@ -35,7 +35,15 @@ public class ScanForTermsToBeDeleted {
 	private File directory;
 	private int lastFoundNumber;
 	private TermEntryFileWriter openedFile;
-	private static int CREATED_FILES = 3;
+	private static int CREATED_FILES = 10;
+
+	/**
+	 * Don't remove too many per term. There seems to be a problem
+	 * with creating the index with entries to be removed and this
+	 * is an attempt to address that without having do dig too deep
+	 * in the details of how the B-tree is persisted.
+	 */
+	private static int MAX_ENTRIES_PER_TERM = 10000;
 
 	public ScanForTermsToBeDeleted(File dir, int lastFound) {
 		directory = dir;
@@ -74,11 +82,15 @@ public class ScanForTermsToBeDeleted {
 			SkeletonBTreeSet<TermEntry> set = idxFreenet.ttab.get(term);
 			set.inflate();
 			Map<String, TermPageEntry> usksInThisTerm = new HashMap<String, TermPageEntry>();
+			int countWrittenEntries = 0;
 			for (TermEntry e : set) {
 				if (e instanceof TermPageEntry) {
 					TermPageEntry tpe = (TermPageEntry) e;
 					if (tpe.toBeDropped()) {
 						writeTermEntry(new TermDeletePageEntry(tpe));
+						if (++countWrittenEntries > MAX_ENTRIES_PER_TERM) {
+							break;
+						}
 						continue;
 					}
 					FreenetURI uri = tpe.getPage();
@@ -90,11 +102,17 @@ public class ScanForTermsToBeDeleted {
 							if (seenUsks.get(root) > edition) {
 								// This term can be removed.
 								writeTermEntry(new TermDeletePageEntry(tpe));
+								if (++countWrittenEntries > MAX_ENTRIES_PER_TERM) {
+									break;
+								}
 							} else if (edition > seenUsks.get(root)) {
 								seenUsks.put(root, edition);
 								if (usksInThisTerm.containsKey(root)) {
 									// The old term can be removed.
 									writeTermEntry(new TermDeletePageEntry(usksInThisTerm.get(root)));
+									if (++countWrittenEntries > MAX_ENTRIES_PER_TERM) {
+										break;
+									}
 									usksInThisTerm.put(root, tpe);
 								}
 							}
