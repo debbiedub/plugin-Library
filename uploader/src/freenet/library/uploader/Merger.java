@@ -23,6 +23,7 @@ import freenet.library.ArchiverFactory;
 import freenet.library.FactoryRegister;
 import freenet.library.Priority;
 import freenet.library.index.TermEntry;
+import freenet.library.index.TermEntry.EntryType;
 import freenet.library.io.ObjectStreamReader;
 import freenet.library.io.ObjectStreamWriter;
 import freenet.library.io.serial.LiveArchiver;
@@ -45,18 +46,29 @@ import freenet.library.util.exec.TaskAbortException;
  * Run once to merge once. If more than one of these merge jobs are
  * started at the time, the FcpConnection will fail to open since
  * they use the same name.
- * <ol> Check if there are directories to merge. If so, merge the first of them (order is not important). Done!
- * <ol> If there are no files to merge. Done!
+ * <ol> Check if there are directories to merge. If so, merge the first of
+ *      them (order is not important). Done!
  * <ol> Fetch the index top to get the top fan-out.
- * <ol> Get the first term in the first and create an index with all
- *      the contents from all the files with all terms from the same index.
- * <ol> While processing, group into some selected files. The rest goes
- *      into the filtered files.
- * <ol> Merge that index.
- * <ol> If there are selected files, get the first term from the first one of them instead.
- * <ol> If there is room for more in the same go, get the next selected file.
- * <ol> Rewrite all not filtered files getting the matched terms.
- * <ol> Done.
+ * <ol> If there are selected files, create an index around the first term
+ *      from the first one of them instead.
+ * <ol> Also include the matching terms from all not filtered files
+ *      (processed and new). Done!
+ * <ol> If there are no selected files, get the first term in the first file
+ *      and create an index with all the contents from all the files with all
+ *      terms from the same part of the index.
+ * <ol> While processing, group into selected files. The rest goes into
+ *      the filtered files. Also go through the deleted files to sort into
+ *      the index and selected files. Done!
+ * <ol> If there are no files at all, scan for terms to be deleted.
+ *
+ * Keeping a strict order among the files is a variant of the elevator
+ * algorithm where the next in line will get served while at the same time
+ * also serving all with the same destination.
+ *
+ * The to-be-deleted files are processed after all other files and risk to
+ * suffer from starvation. To reduce this risk, the first of the
+ * to-be-deleted term is added to the filtered files to eventually arrive
+ * to all to-be-deleted terms.
  */
 final public class Merger {
 
@@ -294,6 +306,14 @@ final public class Merger {
 			}
 		}
 
+		int lastToBeDeleted = 0;
+		for (String filename : toBeDeletedFilesToMerge) {
+			int numberFound = Integer.parseInt(filename.substring(TO_BE_DELETED.length()));
+			if (numberFound > lastToBeDeleted) {
+				lastToBeDeleted = numberFound;
+			}
+		}
+
 		Map<IndexPeeker, TermEntryFileWriter> writers =
 				new HashMap<IndexPeeker, TermEntryFileWriter>();
 		IndexPeeker creatorPeeker = new IndexPeeker(directory);
@@ -313,18 +333,24 @@ final public class Merger {
 			private boolean doFiltered = false;
 			private boolean doProcessed = false;
 			private boolean doNew = true;
+			private boolean doToBeDeleted = false;
 			private int nextSelected = 0;
 			private int nextFiltered = 0;
 			private int nextProcessed = 0;
 			private int nextNew = 0;
+			private int nextToBeDeleted = 0;
 
 			ProcessedFilenames() {
 				if (selectedFilesToMerge.length > 0) {
 					doSelected = true;
-					if (processedFilesToMerge.length > filteredFilesToMerge.length) {
+					if ((processedFilesToMerge.length - 1) * selectedFilesToMerge.length > filteredFilesToMerge.length + toBeDeletedFilesToMerge.length) {
+						// Too many processed files to go through every time.
+						// Resort all existing selected files together with
+						// the processed files into new selected files.
 						createSelectedFiles = true;
 						doAllSelected = true;
 						doFiltered = true;
+						doToBeDeleted = true;
 						restBase = FILTERED;
 					} else {
 						restBase = PROCESSED;
@@ -332,6 +358,7 @@ final public class Merger {
 				} else {
 					createSelectedFiles = true;
 					doFiltered = true;
+					doToBeDeleted = true;
 					restBase = FILTERED;
 				}
 				doProcessed = true;
@@ -356,7 +383,7 @@ final public class Merger {
 				if (doNew && nextNew < newFilesToMerge.length) {
 					return true;
 				}
-				if (doNew && nextNew < newFilesToMerge.length + toBeDeletedFilesToMerge.length) {
+				if (doToBeDeleted && nextToBeDeleted < toBeDeletedFilesToMerge.length) {
 					return true;
 				}
 				return false;
@@ -378,8 +405,8 @@ final public class Merger {
 					return processedFilesToMerge[nextProcessed++];
 				} else if (doNew && nextNew < newFilesToMerge.length) {
 					return newFilesToMerge[nextNew++];
-				} else if (doNew && nextNew < newFilesToMerge.length + toBeDeletedFilesToMerge.length) {
-					return toBeDeletedFilesToMerge[nextNew++ - newFilesToMerge.length];
+				} else if (doToBeDeleted && nextToBeDeleted < toBeDeletedFilesToMerge.length) {
+					return toBeDeletedFilesToMerge[nextToBeDeleted++];
 				} else {
 					throw new IllegalArgumentException("next() called after hasNext() returned false.");
 				}
@@ -392,6 +419,8 @@ final public class Merger {
 		};
 		final ProcessedFilenames processedFilenames = new ProcessedFilenames();
 		TermEntryFileWriter notMerged = null;
+		TermEntryFileWriter notMergedToBeDeleted = null;
+		boolean firstToBeDeletedAddedInNotMerged = false;
 
 		int totalTerms = 0;
 
@@ -449,7 +478,8 @@ final public class Merger {
 					}
 					if (found) {
 						continue;
-					} else if (writers.size() < 3 || writers.size() < 10 * (filteredFilesToMerge.length - 1)) {
+					} else if (writers.size() < 3 ||
+							writers.size() < 10 * (filteredFilesToMerge.length + toBeDeletedFilesToMerge.length - 1)) {
 						lastSelected ++;
 						String selectedFilename = SELECTED + lastSelected;
 						IndexPeeker p = new IndexPeeker(directory);
@@ -462,15 +492,31 @@ final public class Merger {
 						continue;
 					}
 				}
-				if (notMerged == null) {
-					lastFoundNumber ++;
-					String restFilename = processedFilenames.restBase + lastFoundNumber;
-					notMerged = new TermEntryFileWriter(teri.getHeader(), new File(directory, restFilename));
-				}
-				notMerged.write(tt);
-				if (notMerged.isFull()) {
-					notMerged.close();
-					notMerged = null;
+				if (tt.entryType() == EntryType.DELETE_PAGE && firstToBeDeletedAddedInNotMerged) {
+					if (notMergedToBeDeleted == null) {
+						lastToBeDeleted++;
+						String restFilename = TO_BE_DELETED + lastToBeDeleted;
+						notMergedToBeDeleted = new TermEntryFileWriter(teri.getHeader(), new File(directory, restFilename));
+					}
+					notMergedToBeDeleted.write(tt);
+					if (notMergedToBeDeleted.isFull()) {
+						notMergedToBeDeleted.close();
+						notMergedToBeDeleted = null;
+					}
+				} else {
+					if (notMerged == null) {
+						lastFoundNumber ++;
+						String restFilename = processedFilenames.restBase + lastFoundNumber;
+						notMerged = new TermEntryFileWriter(teri.getHeader(), new File(directory, restFilename));
+					}
+					notMerged.write(tt);
+					if (tt.entryType() == EntryType.DELETE_PAGE) {
+						firstToBeDeletedAddedInNotMerged = true;
+					}
+					if (notMerged.isFull()) {
+						notMerged.close();
+						notMerged = null;
+					}
 				}
 			}
 			if (processedFilenames.processingSelectedFile) {
@@ -482,6 +528,10 @@ final public class Merger {
 		if (notMerged != null) {
 			notMerged.close();
 			notMerged = null;
+		}
+		if (notMergedToBeDeleted != null) {
+			notMergedToBeDeleted.close();
+			notMergedToBeDeleted = null;
 		}
 		for (File file : toBeRemoved) {
 			System.out.println("Removing file " + file);
