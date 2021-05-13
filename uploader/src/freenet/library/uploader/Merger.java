@@ -79,6 +79,13 @@ final public class Merger {
 	private static final String PROCESSED = UploaderPaths.BASE_FILENAME_DATA + "processed.";
 	static final String TO_BE_DELETED = UploaderPaths.BASE_FILENAME_DATA + "deletes.";
 
+	/**
+	 * Each created selected file will use up one fd for the duration of
+	 * the sorting. Since there is a maximum on the number of fds (typically
+	 * 1024) having this unbounded is a theoretical problem.
+	 */
+	private static final int MAX_SELECTED_FILES_CREATED = 500;
+
 	static final Comparator<String> comparator = new StringNumberComparator();
 
 	static class StringNumberComparator implements Comparator<String> {
@@ -478,8 +485,9 @@ final public class Merger {
 					}
 					if (found) {
 						continue;
-					} else if (writers.size() < 3 ||
-							writers.size() < 10 * (filteredFilesToMerge.length + toBeDeletedFilesToMerge.length - 1)) {
+					} else if ((writers.size() < 3 ||
+							writers.size() < 10 * (filteredFilesToMerge.length + toBeDeletedFilesToMerge.length - 1)) &&
+							writers.size() < MAX_SELECTED_FILES_CREATED) {
 						lastSelected ++;
 						String selectedFilename = SELECTED + lastSelected;
 						IndexPeeker p = new IndexPeeker(directory);
