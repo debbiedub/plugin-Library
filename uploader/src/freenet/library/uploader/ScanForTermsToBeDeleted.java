@@ -43,7 +43,7 @@ public class ScanForTermsToBeDeleted {
 	 * is an attempt to address that without having do dig too deep
 	 * in the details of how the B-tree is persisted.
 	 */
-	private static int MAX_ENTRIES_PER_TERM = 10000;
+	private static int MAX_ENTRIES_PER_TERM = 100000;
 
 	public ScanForTermsToBeDeleted(File dir, int lastFound) {
 		directory = dir;
