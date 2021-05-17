@@ -1575,21 +1575,41 @@ implements Map<K, V>, SortedMap<K, V>/*, NavigableMap<K, V>, Cloneable, Serializ
 				int L = (lnode == null)? -1: lnode.nodeSize();
 				int R = (rnode == null)? -1: rnode.nodeSize();
 
-				K kk = // in java, ?: must be used in a statement :|
-				// lnode doesn't exist
-				(L < 0)? ((R == ENT_MIN)? merge(parent, node, rnode):
-				                          rotateL(parent, node, rnode)):
-				// rnode doesn't exist
-				(R < 0)? ((L == ENT_MIN)? merge(parent, lnode, node):
-				                          rotateR(parent, lnode, node)):
-				// pick the node with more entries
-				(R > L)? rotateL(parent, node, rnode):
-				(L > R)? rotateR(parent, lnode, node):
-				// otherwise pick one at "random"
-				(size&1) == 1? (R == ENT_MIN? merge(parent, node, rnode):
-				                              rotateL(parent, node, rnode)):
-				               (L == ENT_MIN? merge(parent, lnode, node):
-				                              rotateR(parent, lnode, node));
+				final boolean lnodeDoesNotExist = L < 0;
+				final boolean rnodeDoesNotExist = R < 0;
+				if (lnodeDoesNotExist) {
+					if (R == ENT_MIN) {
+						merge(parent, node, rnode);
+					} else {
+						rotateL(parent, node, rnode);
+					}
+				} else if (rnodeDoesNotExist) {
+					if (L == ENT_MIN) {
+						merge(parent, lnode, node);
+					} else {
+						rotateR(parent, lnode, node);
+					}
+				} else if (R > L) {
+					// pick the node with more entries
+					rotateL(parent, node, rnode);
+				} else if (L > R) {
+					rotateR(parent, lnode, node);
+				} else {
+					// otherwise pick one at "random"
+					if ((size&1) == 1) {
+						if (R == ENT_MIN) {
+							merge(parent, node, rnode);
+						} else {
+							rotateL(parent, node, rnode);
+						}
+					} else {
+						if (L == ENT_MIN) {
+							merge(parent, lnode, node);
+						} else {
+							rotateR(parent, lnode, node);
+						}
+					}
+				}
 				node = parent.selectNode(key);
 				assert(node != null);
 			}
