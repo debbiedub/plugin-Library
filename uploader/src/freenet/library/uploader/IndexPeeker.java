@@ -16,14 +16,14 @@ import freenet.library.util.SkeletonBTreeSet;
 
 class IndexPeeker {
 	private File directory;
-	private LinkedHashMap<String, Object> topTtab;
 	private Set<String> topElements;
-	private List<ChoosenSection> activeSections = null;
+	private ChoosenSection activeSection = null;
 
 	private static final SkeletonBTreeMap<String, SkeletonBTreeSet<TermEntry>> newtrees =
 			new SkeletonBTreeMap<String, SkeletonBTreeSet<TermEntry>>(12);
 
 	IndexPeeker(File dir) {
+		LinkedHashMap<String, Object> topTtab;
 		directory = dir;
 		String lastCHK = DirectoryUploader.readStringFrom(new File(directory, UploaderPaths.LAST_URL_FILENAME));
 		String rootFilename = directory + "/" + UploaderPaths.LIBRARY_CACHE + "/" + lastCHK;
@@ -34,6 +34,7 @@ class IndexPeeker {
 		} catch (IOException e) {
 			e.printStackTrace();
 			System.exit(1);
+			return;
 		}
 		if (topTtab.size() < 1000) {
 			// So far the growth of the index and the growth of the elements
@@ -50,7 +51,6 @@ class IndexPeeker {
 		}
 
 		topElements = new HashSet<String>(topTtab.keySet());
-		activeSections = new LinkedList<ChoosenSection>();
 	}
 
 	private static int compare(String a, String b) {
@@ -65,7 +65,7 @@ class IndexPeeker {
 			System.out.println("Grouping around " + subj);
 			String previous = null;
 			String next = null;
-			for (String iter : topTtab.keySet()) {
+			for (String iter : topElements) {
 				next = iter;
 				if (compare(subj, next) < 0) {
 					break;
@@ -100,13 +100,13 @@ class IndexPeeker {
 		if (topElements.contains(subj)) {
 			return true;
 		}
-		for (ChoosenSection section : activeSections) {
-			if (section.include(subj)) {
+		if (activeSection != null) {
+			if (activeSection.include(subj)) {
 				return true;
 			}
 		}
-		if (activeSections.size() < 1) {
-			activeSections.add(new ChoosenSection(subj));
+		if (activeSection == null) {
+			activeSection = new ChoosenSection(subj);
 			return true;
 		}
 		return false;
