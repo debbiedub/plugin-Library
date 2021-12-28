@@ -62,6 +62,7 @@ class AdHocDataReader {
 				}
 
 			} catch (ClassCastException e) {
+				logger.severe("Cannot process BinInfo value " + value.getID() + " for " + uriProcessor.getURI());
 				throw new RuntimeException("Cannot process BinInfo value " + value.getID() + " for " + uriProcessor.getURI(), e);
 			}
 		}
@@ -110,10 +111,16 @@ class AdHocDataReader {
 			if (map.containsKey("lkey") &&
 				map.containsKey("rkey") &&
 				map.containsKey("entries")) {
-				// Must separate map and array!
 				if (map.containsKey("subnodes")) {
-					throw new RuntimeException("This parsing is not complex enough to handle subnodes for terms for " +
-											   uriProcessor.getURI());
+					if (logger.isLoggable(Level.FINER)) {
+						Map<Object, Object> subnodes =
+							(Map<Object, Object>) map.get("subnodes");
+						logger.log(Level.FINER, "Sub (level {0}) with {1} subnodes", new Object[] {
+								uriProcessor.getLevel(),
+								subnodes.size(),
+							});
+					}
+					foundChildren += processSubnodes(map, uriProcessor);
 				}
 				if (map.get("entries") instanceof Map) {
 					Map<String, BinInfo> entries =
@@ -161,6 +168,8 @@ class AdHocDataReader {
 							}
 							continue;
 						}
+						logger.severe("Cannot process entries. Entry for " + contents.getKey() + " is not String=Map for " +
+								uriProcessor.getURI());
 						throw new RuntimeException("Cannot process entries. Entry for " + contents.getKey() + " is not String=Map for " +
 												   uriProcessor.getURI());
 					}
