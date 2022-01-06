@@ -467,7 +467,7 @@ final public class Merger {
 					 continue;
 				}
 				totalTerms ++;
-				if (creatorPeeker.include(tt.subj)) {
+				if (creatorPeeker.includes(tt.subj)) {
 					creator.putEntry(tt);
 					processedFilenames.movedTerms ++;
 					continue;
@@ -477,7 +477,7 @@ final public class Merger {
 					// They are all to be sorted.
 					boolean found = false;
 					for (Map.Entry<IndexPeeker, TermEntryFileWriter> entry : writers.entrySet()) {
-						if (entry.getKey().include(tt.subj)) {
+						if (entry.getKey().includes(tt.subj)) {
 							entry.getValue().write(tt);
 							found = true;
 							break;
@@ -493,13 +493,16 @@ final public class Merger {
 						IndexPeeker p = new IndexPeeker(directory);
 						TermEntryFileWriter t = new TermEntryFileWriter(teri.getHeader(),
 								new File(directory, selectedFilename));
-						if (p.include(tt.subj)) {
+						if (p.includes(tt.subj)) {
 							writers.put(p, t);
 							t.write(tt);
 						}
 						continue;
 					}
 				}
+				// Keep the first Delete page entry among the entries to process. This will keep
+				// from starving the Delete pages while the bulk of them are processed among new
+				// entries.
 				if (tt.entryType() == EntryType.DELETE_PAGE && firstToBeDeletedAddedInNotMerged) {
 					if (notMergedToBeDeleted == null) {
 						lastToBeDeleted++;

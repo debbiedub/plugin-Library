@@ -5,8 +5,6 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Set;
 
 import freenet.library.index.TermEntry;
@@ -14,6 +12,14 @@ import freenet.library.io.YamlReaderWriter;
 import freenet.library.util.SkeletonBTreeMap;
 import freenet.library.util.SkeletonBTreeSet;
 
+/**
+ * Looks in the existing index and establishes what part of the tree a term exists in.
+ *
+ * When created the IndexPeeker is not fixed to any part of the tree. The first call to
+ * {@link #includes(String)} will succeed and fixes the instance for that part.
+ * Subsequent calls to {@link #includes(String)} succeeds if the term can be included
+ * when processing the same part.
+ */
 class IndexPeeker {
 	private File directory;
 	private Set<String> topElements;
@@ -77,7 +83,7 @@ class IndexPeeker {
 			after = next;
 		}
 
-		boolean include(String subj) {
+		boolean includes(String subj) {
 			if ((before == null || compare(before, subj) < 0) &&
 					(after == null || compare(subj, after) < 0)) {
 				return true;
@@ -96,12 +102,12 @@ class IndexPeeker {
 	 * @param subj The term to include.
 	 * @return true if the term is included.
 	 */
-	boolean include(String subj) {
+	boolean includes(String subj) {
 		if (topElements.contains(subj)) {
 			return true;
 		}
 		if (activeSection != null) {
-			if (activeSection.include(subj)) {
+			if (activeSection.includes(subj)) {
 				return true;
 			}
 		}
