@@ -207,7 +207,9 @@ public class FcpArchiver<T,  S extends ObjectStreamWriter & ObjectStreamReader>
 			synchronized (putter) {
 				putter.notify();
 			}
-			System.err.println("receivedPutFailed for " + token + at() + " aborting.");
+			System.err.println("receivedPutFailed for " + token + at() + " aborting " +
+					"because of error code " + pf.getCode() + ": " + pf.getShortCodeDescription());
+			System.err.println(pf.getCodeDescription());
 			markDone();
 			System.exit(1);
 		}
