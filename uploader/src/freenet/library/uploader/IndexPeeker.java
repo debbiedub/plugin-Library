@@ -3,11 +3,15 @@ package freenet.library.uploader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.net.MalformedURLException;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Set;
 
 import freenet.library.index.TermEntry;
+import freenet.library.io.FreenetURI;
 import freenet.library.io.YamlReaderWriter;
 import freenet.library.util.SkeletonBTreeMap;
 import freenet.library.util.SkeletonBTreeSet;
@@ -19,44 +23,36 @@ import freenet.library.util.SkeletonBTreeSet;
  * {@link #includes(String)} will succeed and fixes the instance for that part.
  * Subsequent calls to {@link #includes(String)} succeeds if the term can be included
  * when processing the same part.
+ *
+ * Exception: As long as the terms are on the top level, the part of the tree is not fixed.
  */
 class IndexPeeker {
 	private File directory;
 	private Set<String> topElements;
 	private ChoosenSection activeSection = null;
+	private ChoosenSection partiallyFixedSection = null;
+	private LinkedHashMap<String, Object> tab;
 
 	private static final SkeletonBTreeMap<String, SkeletonBTreeSet<TermEntry>> newtrees =
 			new SkeletonBTreeMap<String, SkeletonBTreeSet<TermEntry>>(12);
 
 	IndexPeeker(File dir) {
-		LinkedHashMap<String, Object> topTtab;
+		LinkedHashMap<String, Object> ttab;
 		directory = dir;
 		String lastCHK = DirectoryUploader.readStringFrom(new File(directory, UploaderPaths.LAST_URL_FILENAME));
 		String rootFilename = directory + "/" + UploaderPaths.LIBRARY_CACHE + "/" + lastCHK;
 		try {
 			LinkedHashMap<String, Object> top = (LinkedHashMap<String, Object>) new YamlReaderWriter().readObject(new FileInputStream(new File(rootFilename)));
-			LinkedHashMap<String, Object> ttab = (LinkedHashMap<String, Object>) top.get("ttab");
-			topTtab = (LinkedHashMap<String, Object>) ttab.get("entries");
+			ttab = (LinkedHashMap<String, Object>) top.get("ttab");
 		} catch (IOException e) {
 			e.printStackTrace();
 			System.exit(1);
 			return;
 		}
-		if (topTtab.size() < 1000) {
-			// So far the growth of the index and the growth of the elements
-			// in the top node has gone hand in hand keeping the amount of 
-			// pages to update for each merger low. When the amount of terms
-			// will exceed 1500 x 2048 the B-tree index will suddenly be
-			// rebuilt with just two entries on top that will share all the 
-			// terms between them. This means that this logic of splitting
-			// on the top level only will split into two piles instead of 
-			// over a thousand and there is a risk that way too much will be
-			// included in each update. This code needs to be improved to 
-			// handle this.
-			throw new IllegalArgumentException("This version of the script does not handle multi-level tree.");
-		}
 
+		LinkedHashMap<String, Object> topTtab = (LinkedHashMap<String, Object>) ttab.get("entries");
 		topElements = new HashSet<String>(topTtab.keySet());
+		tab = ttab;
 	}
 
 	private static int compare(String a, String b) {
@@ -67,18 +63,11 @@ class IndexPeeker {
 		String before;
 		String after;
 		
-		ChoosenSection(String subj) {
-			System.out.println("Grouping around " + subj);
-			String previous = null;
-			String next = null;
-			for (String iter : topElements) {
-				next = iter;
-				if (compare(subj, next) < 0) {
-					break;
-				}
-				previous = iter;
-				next = null;
-			}
+		/**
+		 * A ChosenSection can only be created once per IndexPeeker.
+		 * @param subj
+		 */
+		ChoosenSection(String previous, String next) {
 			before = previous;
 			after = next;
 		}
@@ -104,17 +93,71 @@ class IndexPeeker {
 	 */
 	boolean includes(String subj) {
 		if (topElements.contains(subj)) {
+			if (partiallyFixedSection != null) {
+				if (!partiallyFixedSection.includes(subj)) {
+					return false;
+				}
+			}
 			return true;
 		}
 		if (activeSection != null) {
-			if (activeSection.includes(subj)) {
-				return true;
+			return activeSection.includes(subj);
+		}
+		assert activeSection == null;
+		String previous = null;
+		String next = null;
+		while (tab != null) {
+			previous = null;
+			next = null;
+			int subnodesIndex = 0;
+			Set<String> entries = ((LinkedHashMap<String, Object>) tab.get("entries")).keySet();
+			for (String iter : entries) {
+				next = iter;
+				if (compare(subj, next) < 0) {
+					break;
+				}
+				previous = iter;
+				next = null;
+				subnodesIndex ++;
+			}
+			LinkedHashMap<Object, Object> subnodes = (LinkedHashMap<Object, Object>) tab.get("subnodes");
+			List<Object> subnodesList = new ArrayList<Object>(subnodes.keySet());
+			Object uriAsObject = subnodesList.get(subnodesIndex);
+			FreenetURI uri;
+			if (uriAsObject instanceof FreenetURI) {
+				uri = (FreenetURI) uriAsObject;
+			} else {
+				try {
+					uri = new FreenetURI((String) uriAsObject);
+				} catch (MalformedURLException e) {
+					throw new RuntimeException("Invalid uri "+ uriAsObject + " in list.", e);
+				}
+			}
+
+			String filename = directory + "/" + UploaderPaths.LIBRARY_CACHE + "/" + uri;
+			LinkedHashMap<String, Object> top;
+			try {
+				top = (LinkedHashMap<String, Object>) new YamlReaderWriter().readObject(new FileInputStream(new File(filename)));
+			} catch (IOException e) {
+				e.printStackTrace();
+				System.exit(1);
+				return false;
+			}
+			if (top.containsKey("subnodes")) {
+				topElements.addAll(((LinkedHashMap<String, Object>) top.get("entries")).keySet());
+				tab = top;
+				if (topElements.contains(subj)) {
+					partiallyFixedSection = new ChoosenSection(previous, next);
+					return true;
+				}
+			} else {
+				tab = null;
+				System.out.println("Grouping around " + subj);
+				partiallyFixedSection = null;
+				break;
 			}
 		}
-		if (activeSection == null) {
-			activeSection = new ChoosenSection(subj);
-			return true;
-		}
-		return false;
+		activeSection = new ChoosenSection(previous, next);
+		return true;
 	}
 }
