@@ -318,7 +318,7 @@ class DownloadOneEdition {
 		logger.info("Statistics for " + edition + ":\n" + sb.toString() + "End Statistics.");
 	}
 
-	private static String STATISTICS_FORMAT = STATISTICS_FORMAT_PREFIX + "%6d%5d%5d%6d%6d%5d%5d\n";
+	private static String STATISTICS_FORMAT = STATISTICS_FORMAT_PREFIX + "%6d%3d%3d%5d%6d%6d%6d\n";
 
 	public final String statisticsLine(String r, int success, int failed, RotatingQueue<Page> rqp) {
 		int counter = success + failed;
