@@ -104,6 +104,8 @@ class IndexPeeker {
 			return activeSection.includes(subj);
 		}
 		assert activeSection == null;
+		String seenPrevious = null;
+		String seenNext = null;
 		String previous = null;
 		String next = null;
 		while (tab != null) {
@@ -119,6 +121,12 @@ class IndexPeeker {
 				previous = iter;
 				next = null;
 				subnodesIndex ++;
+			}
+			if (previous != null) {
+				seenPrevious = previous;
+			}
+			if (next != null) {
+				seenNext = next;
 			}
 			LinkedHashMap<Object, Object> subnodes = (LinkedHashMap<Object, Object>) tab.get("subnodes");
 			List<Object> subnodesList = new ArrayList<Object>(subnodes.keySet());
@@ -157,7 +165,7 @@ class IndexPeeker {
 				break;
 			}
 		}
-		activeSection = new ChoosenSection(previous, next);
+		activeSection = new ChoosenSection(seenPrevious, seenNext);
 		return true;
 	}
 }
