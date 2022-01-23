@@ -133,9 +133,16 @@ public class TermEntryReaderWriter implements ObjectStreamReader<TermEntry>, Obj
 
 	public TermEntry readObject(DataInputStream dis) throws IOException {
 		long svuid = dis.readLong();
-		if (svuid != TermEntry.serialVersionUID) {
-			throw new DataFormatException("Incorrect serialVersionUID", null, svuid);
+		if (svuid == TermEntry.serialVersionUID) {
+			return readObjectVersion1(dis);
 		}
+		if (svuid == TermEntry.serialVersionUID2) {
+			return readObjectVersion2(dis);
+		}
+		throw new DataFormatException("Incorrect serialVersionUID", null, svuid);
+	}
+
+	private TermEntry readObjectVersion1(DataInputStream dis) throws IOException, DataFormatException, AssertionError {
 		int type = dis.readInt();
 		String subj = dis.readUTF();
 		float rel = dis.readFloat();
@@ -179,6 +186,49 @@ public class TermEntryReaderWriter implements ObjectStreamReader<TermEntry>, Obj
 		}
 	}
 
+	private TermEntry readObjectVersion2(DataInputStream dis) throws IOException, DataFormatException, AssertionError {
+		int type = dis.readInt();
+		String subj = dis.readUTF();
+		float rel = dis.readFloat();
+		TermEntry.EntryType[] types = TermEntry.EntryType.values();
+		if (type < 0 || type >= types.length) {
+			throw new DataFormatException("Unrecognised entry type", null, type);
+		}
+		switch (types[type]) {
+		case PAGE:
+		case DELETE_PAGE:
+			FreenetURI page = new FreenetURI(dis.readUTF());
+			boolean hasTitle = dis.readBoolean();
+			String title = null;
+			if (hasTitle) {
+				title = dis.readUTF();
+				if (!isValid(title)) {
+					title = clean(title);
+				}
+			}
+			int positionSize = dis.readInt();
+			if (positionSize < 0) {
+				throw new DataFormatException(subj + " has strange positionSize", null, null);
+			}
+			Map<Integer, String> pos = new HashMap<Integer, String>(positionSize<<1);
+			for (int i=0; i<positionSize; ++i) {
+				int index = dis.readInt();
+				String val = dis.readUTF();
+				pos.put(index, "".equals(val) ? null : val);
+			}
+			switch (types[type]) {
+			case PAGE:
+				return new TermPageEntry(subj, rel, page, title, pos);
+			case DELETE_PAGE:
+				return new TermDeletePageEntry(subj, rel, page, title, pos);
+			default:
+				throw new RuntimeException("Cannot happen");
+			}
+		default:
+			throw new AssertionError();
+		}
+	}
+
 	/*@Override**/ public void writeObject(TermEntry en, OutputStream os) throws IOException {
 		writeObject(en, new DataOutputStream(os));
 	}
@@ -195,6 +245,19 @@ public class TermEntryReaderWriter implements ObjectStreamReader<TermEntry>, Obj
     }
 
 	public void writeObject(TermEntry en, DataOutputStream dos) throws IOException {
+		TermEntry.EntryType type = en.entryType();
+		switch (type) {
+		case PAGE:
+		case DELETE_PAGE:
+			writeObjectVersion2(en, dos);
+			break;
+		default:
+			writeObjectVersion1(en, dos);
+			break;
+		}
+	}
+
+	private void writeObjectVersion1(TermEntry en, DataOutputStream dos) throws IOException {
 		dos.writeLong(TermEntry.serialVersionUID);
 		TermEntry.EntryType type = en.entryType();
 		dos.writeInt(type.ordinal());
@@ -238,4 +301,44 @@ public class TermEntryReaderWriter implements ObjectStreamReader<TermEntry>, Obj
 		}
 	}
 
+	private void writeObjectVersion2(TermEntry en, DataOutputStream dos) throws IOException {
+		dos.writeLong(TermEntry.serialVersionUID2);
+		TermEntry.EntryType type = en.entryType();
+		dos.writeInt(type.ordinal());
+		dos.writeUTF(en.subj);
+		dos.writeFloat(en.rel);
+		switch (type) {
+		case PAGE:
+		case DELETE_PAGE:
+			TermPageEntry enn = (TermPageEntry)en;
+			dos.writeUTF(enn.getPage().toString());
+			if(enn.title == null)
+				dos.writeBoolean(false);
+			else {
+				dos.writeBoolean(true);
+				dos.writeUTF(clean(enn.title));
+			}
+			int size = enn.hasPositions() ? enn.positionsSize() : 0;
+			dos.writeInt(size);
+			if(size != 0) {
+				if(enn.hasFragments()) {
+					for(Map.Entry<Integer, String> p : enn.positionsMap().entrySet()) {
+						dos.writeInt(p.getKey());
+						if(p.getValue() == null)
+							dos.writeUTF("");
+						else
+							dos.writeUTF(p.getValue());
+					}
+				} else {
+					for(int x : enn.positionsRaw()) {
+						dos.writeInt(x);
+						dos.writeUTF("");
+					}
+				}
+			}
+			return;
+		default:
+			throw new RuntimeException("Not implemented");
+		}
+	}
 }
