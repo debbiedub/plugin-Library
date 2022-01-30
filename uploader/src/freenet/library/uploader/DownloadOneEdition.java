@@ -3,16 +3,20 @@
 
 package freenet.library.uploader;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.OutputStream;
 import java.net.MalformedURLException;
 import java.nio.file.Files;
 import java.nio.file.FileAlreadyExistsException;
-import java.nio.file.StandardCopyOption;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Date;
@@ -31,6 +35,8 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
 
 import freenet.library.io.FreenetURI;
 import net.pterodactylus.fcp.AllData;
@@ -179,7 +185,76 @@ class DownloadOneEdition {
 		}
 
 		File getFile() {
-			return new File(directory, getURI().toString().replace("/", "__"));
+			return new File(directory, getFileBaseName());
+		}
+
+		File getGZipFile() {
+			return new File(directory, getFileBaseName() + ".gz");
+		}
+
+		/**
+		 * Return existing file storing the page.
+		 * 
+		 * If there is no such file, return any file that could store the page.
+		 */
+		File getAnyFile() {
+			File file = getGZipFile();
+			if (!file.exists()) {
+				return getFile();
+			}
+			return file;
+		}
+
+		/**
+		 * @return the length of the file.
+		 */
+		public long getFileLength() {
+			File file = getFile();
+			if (file.exists()) {
+				return getFile().length();
+			}
+			InputStream is = null;
+			try {
+				is = getInputStream();
+				int s = 0;
+				while (is.read() != -1) {
+					s++;
+				}
+				return s;
+			} catch (IOException e) {
+				// Ignore this problem. It shouldn't happen.
+				return 0;
+			} finally {
+				if (is != null) {
+					try {
+						is.close();
+					} catch (IOException e) {
+						// Ignore this problem. It shouldn't happen.
+					}
+				}
+			}
+		}
+
+		private String getFileBaseName() {
+			return getURI().toString().replace("/", "__");
+		}
+
+		void deleteFile() {
+			getGZipFile().delete();
+			getFile().delete();
+		}
+
+		InputStream getInputStream() throws IOException {
+			try {
+				return new GZIPInputStream(new FileInputStream(getGZipFile()));
+			} catch (FileNotFoundException e) {
+				return new FileInputStream(new File(directory, getFileBaseName()));
+			}
+		}
+
+		OutputStream getOutputStream() throws FileNotFoundException, IOException {
+			File file = getGZipFile();
+			return new GZIPOutputStream(new FileOutputStream(file));
 		}
 
 		private void calculateNextFetchAttempt() {
@@ -337,6 +412,16 @@ class DownloadOneEdition {
 		return "";
 	}
 
+	private void copy(InputStream source, OutputStream sink) throws IOException {
+		try (OutputStream out = new BufferedOutputStream(sink);
+				InputStream in   = new BufferedInputStream(source)) {
+			int ch;
+			while ((ch = in.read()) != -1) {
+				out.write(ch);
+			}
+		}
+	}
+
 	private boolean fetch(final Page page) {
 		int counter;
 		synchronized (this) {
@@ -358,10 +443,9 @@ class DownloadOneEdition {
 				}
 				logger.entering(DownloadOneEdition.class.toString(), "receivedAllData", "receivedAllData for " + token);
 				try {
-					Files.copy(ad.getPayloadInputStream(), page.getFile().toPath(),
-							StandardCopyOption.REPLACE_EXISTING);
+					copy(ad.getPayloadInputStream(), page.getOutputStream());
 				} catch (IOException ioe) {
-					page.getFile().delete();
+					page.deleteFile();
 					synchronized (getter) {
 						getter.notify();
 					}
@@ -428,7 +512,7 @@ class DownloadOneEdition {
 
 	private void parse(final Page page) {
 		try {
-			reader.readAndProcessYamlData(new FileInputStream(page.getFile()), new AdHocDataReader.UriProcessor() {
+			reader.readAndProcessYamlData(page.getInputStream(), new AdHocDataReader.UriProcessor() {
 				@Override
 				public FreenetURI getURI() {
 					return page.getURI();
@@ -466,7 +550,7 @@ class DownloadOneEdition {
 
 			}, page.getLevel());
 		} catch (IOException ioe) {
-			page.getFile().delete();
+			page.deleteFile();
 		}
 	}
 
@@ -482,7 +566,7 @@ class DownloadOneEdition {
 		putter.setEarlyEncode(true);
 		putter.setPriority(net.pterodactylus.fcp.Priority.bulkSplitfile);
 		putter.setVerbosity(Verbosity.NONE);
-		final long dataLength = page.getFile().length();
+		final long dataLength = page.getFileLength();
 		putter.setDataLength(dataLength);
 
 		final FcpAdapter listener = new FcpAdapter() {
@@ -555,9 +639,9 @@ class DownloadOneEdition {
 			}
 		};
 		connection.addFcpListener(listener);
-		FileInputStream in;
+		InputStream in;
 		try {
-			in = new FileInputStream(page.getFile());
+			in = page.getInputStream();
 			putter.setPayloadInputStream(in);
 			connection.sendMessage(putter);
 			synchronized (putter) {
@@ -566,10 +650,10 @@ class DownloadOneEdition {
 			in.close();
 			in = null;
 		} catch (IOException | NullPointerException e) {
-			logger.log(Level.WARNING, "Upload failed for " + page.getFile(), e);
+			logger.log(Level.WARNING, "Upload failed for " + page, e);
 		} catch (InterruptedException e) {
 			if (!closingDown) {
-				logger.log(Level.WARNING, "Upload interrupted for " + page.getFile(), e);
+				logger.log(Level.WARNING, "Upload interrupted for " + page, e);
 			}
 			return false;
 		} finally {
@@ -619,10 +703,11 @@ class DownloadOneEdition {
 	 * @param page
 	 */
 	private void doHandleNew(Page page) {
-		if (page.getFile().exists()) {
-			page.getFile().setLastModified(System.currentTimeMillis());
+		File file = page.getAnyFile();
+		if (file.exists()) {
+			file.setLastModified(System.currentTimeMillis());
 			if (cleanUp != null) {
-				cleanUp.remove(page.getFile());
+				cleanUp.remove(file);
 			}
 			toParse.offer(page);
 		} else if (unfetchables.remove(page.getURI())) {
@@ -655,7 +740,7 @@ class DownloadOneEdition {
 	}
 
 	private void doHandleUnfetchable(Page page) {
-		if (page.getFile().exists()) {
+		if (page.getAnyFile().exists()) {
 			toUploadUnfetchable.offer(page);
 		} else {
 			toFetchUnfetchable.offer(page);
@@ -694,9 +779,9 @@ class DownloadOneEdition {
 			toUploadUnfetchable.offer(page);
 		} catch (IOException ioe) {
 			logger.log(Level.SEVERE, "Could not copy file " + fromFile + " to " + page.getFile() + ".", ioe);
-			if (page.getFile().exists()) {
-				page.getFile().delete();
-				logger.info("Deleted partial copy " + page.getFile());
+			if (page.getAnyFile().exists()) {
+				page.deleteFile();
+				logger.info("Deleted partial copy " + page);
 			}
 			toFetchUnfetchable.offer(page);
 		} catch (SecurityException se) {
