@@ -5,27 +5,15 @@
 package freenet.library.uploader;
 
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FilenameFilter;
-import java.io.DataInputStream;
-import java.io.FileInputStream;
-import java.io.IOException;
 import java.net.MalformedURLException;
-import java.util.Arrays;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
-import net.pterodactylus.fcp.FcpConnection;
-
-import freenet.library.FactoryRegister;
 import freenet.library.index.TermEntry;
 import freenet.library.index.TermPageEntry;
 import freenet.library.io.FreenetURI;
-import freenet.library.util.exec.TaskAbortException;
 
 /**
  * Generate a file that can be merged.
