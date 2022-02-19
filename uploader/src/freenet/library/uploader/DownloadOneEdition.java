@@ -54,12 +54,38 @@ import net.pterodactylus.fcp.URIGenerated;
 import net.pterodactylus.fcp.Verbosity;
 
 /**
- * Class to download the entire index and save it.
+ * Class to download the entire index and then keep downloading and
+ * uploading missing parts.
  *
  * When a newer USK is seen, stop the processing immediately and exit.
  *
- * If a non-downloadable part is encountered upload it from the saved parts or
- * attempt to download later.
+ * The logic is:
+ * * Download the USK and then the parts referenced from it (currently in 
+ *   5 levels).
+ * * If any of the parts referenced is already downloaded, put it in the
+ *   refetch (download again) queue.
+ * * If a non-downloadable part is encountered attempt to download later.
+ *   This is the fetchunfetchable queue. Attempt each page with a growing
+ *   minimum time since the previous attempt.
+ * * When all parts of the index is downloaded, download the same pages
+ *   again from the refetch queue. Refetch each page with a growing minimum
+ *   time since the previous attempt. If not downloadable, upload it from
+ *   the saved copy.
+ * * When all parts of the index are attempted, remove the parts on disk
+ *   that were not referenced from this USK. They are referenced
+ *   from previous USKs and will never be used again.
+ * * If running this with access to the complete list of uploaded parts,
+ *   the fetchunfetchable queue can also be processed by finding the files
+ *   from the upload store and uploading them.
+ * * Always find a random part from the queues. This allows any number of
+ *   this program to run on different nodes with the best possible spread 
+ *   of downloads and uploads over the whole index.
+ * * The amount of fetches and retrievals are balanced with the ambition to 
+ *   have the amount of fetches and uploads running reflecting the relative
+ *   size of the queues.
+ *   The refetch queue is excluded from this calculation since it always
+ *   considered last with the ideal situation that it contains the whole
+ *   of the index.
  *
  * Log levels used:
  * None/Warning: Serious events and small problems.
