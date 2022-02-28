@@ -1,15 +1,19 @@
 package freenet.library.uploader;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.util.HashSet;
 import java.util.Set;
 
 import freenet.library.io.FreenetURI;
 
 /**
- * Class that is the interface to a persistant store of keys that
+ * Class that is the interface to a persistent store of keys that
  * shall not be considered for deletion.
  *
  * In the first implementation this is a list of lines with one
@@ -32,7 +36,24 @@ class BlockedKeys {
 		directory = dir;
 		if (!doAll) {
 			// Read all
-			throw new RuntimeException("Not yet implemented");
+			final File file = new File(directory, filename);
+			try {
+				FileReader fr = new FileReader(file);
+				BufferedReader br = new BufferedReader(fr);
+				String line;
+				while ((line = br.readLine()) != null) {
+					try {
+						list.add(new FreenetURI(line));
+					} catch (MalformedURLException e) {
+						// This shouldn't happen. Ignore this URI.
+					}
+				}
+			} catch (FileNotFoundException e) {
+				// There is no such file. That is fine.
+			} catch (IOException e) {
+				// We suddenly couln't read this file. Strange problem.
+				throw new RuntimeException(e);
+			}
 		}
 	}
 
@@ -64,7 +85,7 @@ class BlockedKeys {
 		final File file = new File(directory, filename);
 		file.delete();
 		newFile.renameTo(file);
-		System.out.println("Put " + list.size() + " URIs in the block queue.");
+		System.out.println("Now " + list.size() + " URIs in the block queue.");
 	}
 
 }
