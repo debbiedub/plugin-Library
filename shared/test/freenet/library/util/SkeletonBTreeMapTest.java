@@ -64,6 +64,10 @@ public class SkeletonBTreeMapTest {
 		}
 	}
 
+	private void add(int count) throws TaskAbortException {
+		add(1, count);
+	}
+
 	private void checkAllKeys() throws TaskAbortException {
 		for (String k : allKeys) {
 			skelmap.inflate(k);
@@ -80,35 +84,35 @@ public class SkeletonBTreeMapTest {
 
 	@Test
 	public void test1() throws TaskAbortException {
-		add(1, 1);
+		add(1);
 
 		checkAllKeys();
 	}
 
 	@Test
 	public void test3() throws TaskAbortException {
-		add(1, 3);
+		add(3);
 
 		checkAllKeys();
 	}
 
 	@Test
 	public void test4() throws TaskAbortException {
-		add(1, 4);
+		add(4);
 
 		checkAllKeys();
 	}
 
 	@Test
 	public void test10() throws TaskAbortException {
-		add(1, 10);
+		add(10);
 
 		checkAllKeys();
 	}
 
 	@Test
 	public void test100() throws TaskAbortException {
-		add(1, 100);
+		add(100);
 
 		checkAllKeys();
 	}
@@ -116,7 +120,7 @@ public class SkeletonBTreeMapTest {
 	@Ignore("Takes too long to run.")
 	@Test
 	public void BIGtest1000() throws TaskAbortException {
-		add(1, 1000);
+		add(1000);
 
 		checkAllKeys();
 	}
@@ -124,7 +128,7 @@ public class SkeletonBTreeMapTest {
 	@Ignore("Takes too long to run.")
 	@Test
 	public void BIGtest10000() throws TaskAbortException {
-		add(1, 10000);
+		add(10000);
 
 		checkAllKeys();
 	}
@@ -170,6 +174,71 @@ public class SkeletonBTreeMapTest {
 	public void BIGtest10x50() throws TaskAbortException {
 		add(50, 10);
 
+		checkAllKeys();
+	}
+
+	@Test
+	public void testRemove1() throws TaskAbortException {
+		add(3);
+
+		checkAllKeys();
+
+		String key = allKeys.iterator().next();
+		allKeys.remove(key);
+		skelmap.remove(key);
+		
+		checkAllKeys();
+	}
+
+	@Test
+	public void testRemove1from4() throws TaskAbortException {
+		add(4);
+
+		checkAllKeys();
+
+		String key = allKeys.iterator().next();
+		allKeys.remove(key);
+		
+		skelmap.inflate(key);
+		for (;;) {
+			try {
+				skelmap.remove(key);
+				break;
+			} catch (DataNotLoadedException e) {
+				e.getParent().inflate(e.getKey());
+				final String missingKey = (String) e.getKey();
+				skelmap.inflate(missingKey);
+				skelmap.get(missingKey);
+			}
+		}
+		skelmap.deflate();
+		
+		checkAllKeys();
+	}
+
+	@Ignore("Simpler case must work first")
+	@Test
+	public void testRemoveAll() throws TaskAbortException {
+		add(300);
+
+		checkAllKeys();
+
+		while (!allKeys.isEmpty()) {
+			String key = allKeys.iterator().next();
+			allKeys.remove(key);
+			for (;;) {
+				try {
+					skelmap.remove(key);
+					break;
+				} catch (DataNotLoadedException e) {
+					e.getParent().inflate(e.getKey());
+				}
+			}
+			skelmap.deflate();
+		
+			checkAllKeys();
+		}
+		skelmap.deflate();
 		checkAllKeys();
 	}
 }

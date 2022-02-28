@@ -24,6 +24,7 @@ import freenet.library.FactoryRegister;
 import freenet.library.Priority;
 import freenet.library.index.TermEntry;
 import freenet.library.index.TermEntry.EntryType;
+import freenet.library.index.TermPageEntry;
 import freenet.library.io.ObjectStreamReader;
 import freenet.library.io.ObjectStreamWriter;
 import freenet.library.io.serial.LiveArchiver;
@@ -272,7 +273,14 @@ final public class Merger {
 		}
 	}
 
-
+	/**
+	 * Create a new directory with terms to merge from the set of files
+	 * with with terms queued. Also process the files.
+	 *
+	 * @param directory is the location of all files and the resulting directory
+	 * @return true if successful.
+	 * @throws TaskAbortException
+	 */
 	private static boolean createMergeDirectory(File directory) throws TaskAbortException {
 		final String[] selectedFilesToMerge = getMatchingFiles(directory, SELECTED);
 		System.out.println("There is " + selectedFilesToMerge.length + " selected files.");
@@ -423,11 +431,16 @@ final public class Merger {
 			public void remove() {
 				throw new IllegalArgumentException("Not implemented");
 			}
+			
+			public boolean doAll() {
+				return doFiltered;
+			}
 		};
 		final ProcessedFilenames processedFilenames = new ProcessedFilenames();
 		TermEntryFileWriter notMerged = null;
 		TermEntryFileWriter notMergedToBeDeleted = null;
 		boolean firstToBeDeletedAddedInNotMerged = false;
+		BlockedKeys blockedKeys = new BlockedKeys(directory, processedFilenames.doAll());
 
 		int totalTerms = 0;
 
@@ -467,6 +480,10 @@ final public class Merger {
 					 continue;
 				}
 				totalTerms ++;
+				if (tt.entryType() == EntryType.PAGE) {
+					TermPageEntry entry = (TermPageEntry) tt;
+					blockedKeys.block(entry.getPage());
+				}
 				if (creatorPeeker.includes(tt.subj)) {
 					creator.putEntry(tt);
 					processedFilenames.movedTerms ++;
@@ -536,6 +553,8 @@ final public class Merger {
 			}
 			toBeRemoved.add(file);
 		}
+		blockedKeys.flush();
+		blockedKeys = null;
 		if (notMerged != null) {
 			notMerged.close();
 			notMerged = null;
