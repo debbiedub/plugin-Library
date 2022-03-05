@@ -1,3 +1,6 @@
+/* This code is part of Freenet. It is distributed under the GNU General
+ * Public License, version 2 (or at your option any later version). See
+ * http://www.gnu.org/ for further details of the GPL. */
 package freenet.library.uploader;
 
 import java.io.File;
@@ -7,9 +10,6 @@ import freenet.library.io.FreenetURI;
 /**
  * Class that is the interface to a persistent store of keys that
  * shall not be considered for deletion.
- *
- * In the first implementation this is a list of lines with one
- * FreenetURI on each line.
  */
 class BlockedKeys extends StoredKeys {
 
@@ -20,7 +20,7 @@ class BlockedKeys extends StoredKeys {
 	 */
 	
 	public BlockedKeys(File dir, boolean doAll) {
-		super(dir, UploaderPaths.BASE_FILENAME_DATA + "blocked", !doAll);
+		super(dir, UploaderPaths.BASE_FILENAME_DATA + "keysblocked", !doAll);
 	}
 
 	public void block(FreenetURI page) {
