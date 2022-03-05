@@ -29,7 +29,7 @@ public class FreenetURI implements Cloneable, Serializable {
 	private String contents;
 
 	public FreenetURI(String uri) throws MalformedURLException {
-		contents = uri;
+		contents = uri.intern();
 		if (contents.matches("^[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]-" +
 							 "[0-9a-f][0-9a-f][0-9a-f][0-9a-f]-" + 
 							 "[0-9a-f][0-9a-f][0-9a-f][0-9a-f]-" +
@@ -148,7 +148,11 @@ public class FreenetURI implements Cloneable, Serializable {
 	}
 
 	public FreenetURI intern() {
-		return this;
+		try {
+			return new FreenetURI(contents.intern());
+		} catch (MalformedURLException e) {
+			throw new RuntimeException("Shouldn't happen");
+		}
 	}
 
 	/**
@@ -239,6 +243,23 @@ public class FreenetURI implements Cloneable, Serializable {
 		// TODO Auto-generated method stub
 		throw new RuntimeException("Not implemented yet.");
 		// return this;
+	}
+
+	public FreenetURI setSuggestedEdition(long edition) {
+		try {
+			if (isUSK()) {
+				Matcher m = USK_PATTERN.matcher(contents);
+				if (m.matches()) {
+					return new FreenetURI(m.group(1) + "/" + m.group(2) + "/" + edition +
+							(m.group(4) == null ? "" : m.group(4)));
+				} else {
+					throw new RuntimeException("Edition not found in " + contents + ".");
+				}
+			}
+		} catch (MalformedURLException e) {
+			throw new RuntimeException("Malformed key " + contents + ".");
+		}
+		throw new RuntimeException("Cannot find edition in assumed USK: " + contents);
 	}
 
 	public String[] getAllMetaStrings() {

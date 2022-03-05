@@ -73,6 +73,7 @@ public class ScanForTermsToBeDeleted {
 		Map<String, Long> seenUsks = new HashMap<String, Long>();
 		int countFilledFiles = 0;
 		int count = 0;
+		KeysInIndex keysInIndex = new KeysInIndex(directory);
 		for (Iterator<String> i = idxFreenet.ttab.keySetAutoDeflate().iterator();
 				i.hasNext();) {
 			count++;
