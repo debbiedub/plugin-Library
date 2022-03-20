@@ -31,4 +31,8 @@ class BlockedKeys extends StoredKeys {
 		super.flush();
 		System.out.println("Now " + list.size() + " URIs in the block queue.");
 	}
+
+	public boolean isBlocked(FreenetURI uri) {
+		return list.contains(uri);
+	}
 }

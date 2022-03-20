@@ -70,10 +70,10 @@ public class ScanForTermsToBeDeleted {
 	}
 
 	public void run() throws TaskAbortException {
-		Map<String, Long> seenUsks = new HashMap<String, Long>();
 		int countFilledFiles = 0;
 		int count = 0;
 		KeysInIndex keysInIndex = new KeysInIndex(directory);
+		BlockedKeys blockedKeys = new BlockedKeys(directory, false);
 		for (Iterator<String> i = idxFreenet.ttab.keySetAutoDeflate().iterator();
 				i.hasNext();) {
 			count++;
@@ -82,7 +82,6 @@ public class ScanForTermsToBeDeleted {
 			idxFreenet.ttab.inflate(term);
 			SkeletonBTreeSet<TermEntry> set = idxFreenet.ttab.get(term);
 			set.inflate();
-			Map<String, TermPageEntry> usksInThisTerm = new HashMap<String, TermPageEntry>();
 			int countWrittenEntries = 0;
 			for (TermEntry e : set) {
 				if (e instanceof TermPageEntry) {
@@ -95,31 +94,18 @@ public class ScanForTermsToBeDeleted {
 						continue;
 					}
 					FreenetURI uri = tpe.getPage();
-					if (uri.isSSKForUSK()) {
-						FreenetURI uri2 = uri.uskForSSK();
-						String root = uri2.getRoot();
-						long edition = uri2.getEdition();
-						if (seenUsks.containsKey(root)) {
-							if (seenUsks.get(root) > edition) {
-								// This term can be removed.
-								writeTermEntry(new TermDeletePageEntry(tpe));
-								if (++countWrittenEntries > MAX_ENTRIES_PER_TERM) {
-									break;
-								}
-							} else if (edition > seenUsks.get(root)) {
-								seenUsks.put(root, edition);
-								if (usksInThisTerm.containsKey(root)) {
-									// The old term can be removed.
-									writeTermEntry(new TermDeletePageEntry(usksInThisTerm.get(root)));
-									if (++countWrittenEntries > MAX_ENTRIES_PER_TERM) {
-										break;
-									}
-									usksInThisTerm.put(root, tpe);
-								}
-							}
-						} else {
-							seenUsks.put(root, edition);
-							usksInThisTerm.put(root, tpe);
+					keysInIndex.add(uri);
+				}
+			}
+			for (TermEntry e : set) {
+				if (e instanceof TermPageEntry) {
+					TermPageEntry tpe = (TermPageEntry) e;
+					FreenetURI uri = tpe.getPage();
+					if (!blockedKeys.isBlocked(uri) && keysInIndex.isReplaced(uri)) {
+						// This term can be removed.
+						writeTermEntry(new TermDeletePageEntry(tpe));
+						if (++countWrittenEntries > MAX_ENTRIES_PER_TERM) {
+							break;
 						}
 					}
 				}
@@ -139,6 +125,7 @@ public class ScanForTermsToBeDeleted {
 			openedFile.close();
 			openedFile = null;
 		}
+		keysInIndex.flush();
 	}
 
 	private void setupFreenetCacheDir() {

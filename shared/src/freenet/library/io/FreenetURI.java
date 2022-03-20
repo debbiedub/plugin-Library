@@ -179,11 +179,18 @@ public class FreenetURI implements Cloneable, Serializable {
 	}
 
 	private static final Pattern SSK_FOR_USK_PATTERN = Pattern.compile("^SSK@([^/]*/[^-/]*)-([0-9]*)(/.*)?$");
+	/**
+	 * @return true if it is possible to convert this SSK to an USK.
+	 */
 	public boolean isSSKForUSK() {
 		Matcher m = SSK_FOR_USK_PATTERN.matcher(contents);
 		return m.matches();
 	}
 
+	/**
+	 * Create an USK from an SSK.
+	 * @return A new FreenetURI object.
+	 */
 	public FreenetURI uskForSSK() {
 		Matcher m = SSK_FOR_USK_PATTERN.matcher(contents);
 		if (m.matches()) {
