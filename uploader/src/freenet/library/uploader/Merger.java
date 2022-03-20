@@ -6,6 +6,7 @@ package freenet.library.uploader;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileWriter;
 import java.io.FilenameFilter;
 import java.io.DataInputStream;
 import java.io.FileInputStream;
@@ -273,6 +274,42 @@ final public class Merger {
 		}
 	}
 
+	static class InfoFileWriter {
+		FileWriter fw = null;
+		InfoFileWriter(File directory) {
+			File newFile = new File(directory, "library.info");
+			try {
+				newFile.delete();
+				fw = new FileWriter(newFile, false);
+			} catch (IOException e) {
+				throw new RuntimeException(e);
+			}
+		}
+
+		public void println(String outSelected) {
+			try {
+				if (fw != null) {
+					fw.write(outSelected + "\n");
+				}
+			} catch (IOException e) {
+				try {
+					fw.close();
+				} catch (IOException e1) {
+					throw new RuntimeException(e1);
+				}
+				fw = null;
+			}
+		}
+
+		public void close() {
+			try {
+				fw.close();
+			} catch (IOException e) {
+				throw new RuntimeException(e);
+			}
+			fw = null;
+		}
+	}
 	/**
 	 * Create a new directory with terms to merge from the set of files
 	 * with with terms queued. Also process the files.
@@ -282,20 +319,34 @@ final public class Merger {
 	 * @throws TaskAbortException
 	 */
 	private static boolean createMergeDirectory(File directory) throws TaskAbortException {
+		InfoFileWriter ifw = new InfoFileWriter(directory);
+
 		final String[] selectedFilesToMerge = getMatchingFiles(directory, SELECTED);
-		System.out.println("There is " + selectedFilesToMerge.length + " selected files.");
+		final String outSelected = "There is " + selectedFilesToMerge.length + " selected files.";
+		System.out.println(outSelected);
+		ifw.println(outSelected);
 
 		final String [] filteredFilesToMerge = getMatchingFiles(directory, FILTERED);
-		System.out.println("There is " + filteredFilesToMerge.length + " filtered files.");
+		final String outFiltered = "There is " + filteredFilesToMerge.length + " filtered files.";
+		System.out.println(outFiltered);
+		ifw.println(outFiltered);
 
 		final String [] processedFilesToMerge = getMatchingFiles(directory, PROCESSED);
-		System.out.println("There is " + processedFilesToMerge.length + " processed files.");
+		final String outProcessed = "There is " + processedFilesToMerge.length + " processed files.";
+		System.out.println(outProcessed);
+		ifw.println(outProcessed);
 
 		final String[] newFilesToMerge = getMatchingFiles(directory, UploaderPaths.BASE_FILENAME_PUSH_DATA);
-		System.out.println("There is " + newFilesToMerge.length + " new files.");
+		final String outNew = "There is " + newFilesToMerge.length + " new files.";
+		System.out.println(outNew);
+		ifw.println(outNew);
 
 		final String[] toBeDeletedFilesToMerge = getMatchingFiles(directory, TO_BE_DELETED);
-		System.out.println("There is " + toBeDeletedFilesToMerge.length + " to-be-deleted files.");
+		final String outToBeDeleted = "There is " + toBeDeletedFilesToMerge.length + " to-be-deleted files.";
+		System.out.println(outToBeDeleted);
+		ifw.println(outToBeDeleted);
+
+		ifw.close();
 
 		// Calculate the last number of filtered and processed files.
 		int lastFoundNumber = 0;
