@@ -101,11 +101,43 @@ public class ScanForTermsToBeDeleted {
 				if (e instanceof TermPageEntry) {
 					TermPageEntry tpe = (TermPageEntry) e;
 					FreenetURI uri = tpe.getPage();
-					if (!blockedKeys.isBlocked(uri) && keysInIndex.isReplaced(uri)) {
-						// This term can be removed.
+					if (blockedKeys.isBlocked(uri)) {
+						continue;
+					}
+					if (keysInIndex.isReplaced(uri)) {
+						// This term can be removed since there is a newer
+						// page in the index.
 						writeTermEntry(new TermDeletePageEntry(tpe));
 						if (++countWrittenEntries > MAX_ENTRIES_PER_TERM) {
 							break;
+						}
+					} else if (uri.isSSKForUSK()) {
+						FreenetURI usk = uri.uskForSSK();
+						long edition = usk.getEdition();
+						if (!blockedKeys.isBlocked(usk) &&
+								!blockedKeys.isBlocked(usk.setSuggestedEdition(edition + 1L)) &&
+								!blockedKeys.isBlocked(usk.setSuggestedEdition(edition + 2L)) &&
+								!blockedKeys.isBlocked(usk.setSuggestedEdition(edition + 3L)) &&
+								!blockedKeys.isBlocked(usk.setSuggestedEdition(edition + 4L)) &&
+								!blockedKeys.isBlocked(usk.setSuggestedEdition(edition + 5L))
+								) {
+							if (keysInIndex.isReplaced(usk) || keysInIndex.contains(usk)) {
+								// This term can be removed since there is an USK
+								// with a newer page in the index.
+								// This is a somewhat half-hearted logic. For pages
+								// not updated to many times between the SSK was
+								// entered in the index and the USK is found, this
+								// is fine.
+								// For pages updated, the SSK will start to be
+								// removed before the replacement is entirely in 
+								// the index.
+								// On the other hand, SSKs will not be maintained
+								// in the index.
+								writeTermEntry(new TermDeletePageEntry(tpe));
+								if (++countWrittenEntries > MAX_ENTRIES_PER_TERM) {
+									break;
+								}
+							}
 						}
 					}
 				}

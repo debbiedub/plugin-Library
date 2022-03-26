@@ -12,12 +12,9 @@ import java.util.Map;
 import freenet.library.io.FreenetURI;
 
 /**
- * Class that is the interface to a persistent store of keys that
+ * Class that is the interface to a persistent store of USKs that
  * is the last version of a key.
  * All keys older than this one can be considered for removal.
- *
- * For historic reasons (the use of SSKs instead of USKs in the index),
- * SSKs are handled as their corresponding USK.
  */
 class KeysInIndex extends StoredKeys {
 
@@ -72,15 +69,12 @@ class KeysInIndex extends StoredKeys {
 	public void add(FreenetURI page) {
 		try {
 			// Only USKs are considered.
-			// SSKs are removed as if they were outdated USKs.
 			if (page.isUSK()) {
 				FreenetURI replacedURI = updateEdition(page);
 				if (replacedURI != null) {
 					list.remove(replacedURI);
-					list.add(page);
 				}
-			} else if (page.isSSKForUSK()) {
-				add(page.uskForSSK());
+				list.add(page);
 			}
 		} catch (MalformedURLException e) {
 			// This should not happen. Lets ignore this URI.
@@ -95,16 +89,10 @@ class KeysInIndex extends StoredKeys {
 	public boolean isReplaced(FreenetURI page) {
 		try {
 			if (page.isUSK()) {
-				return page.getEdition() < latestEdition(page);
-			} else if(page.isSSKForUSK() ) {
-				final FreenetURI usk = page.uskForSSK();
-				if (isReplaced(usk)) {
-					return true;
-				}
-				if (list.contains(usk)) {
-					return true;
-				}
-				return false;
+				final long edition = page.getEdition();
+				final long latestEdition = latestEdition(page);
+				final boolean replaced = edition < latestEdition;
+				return replaced;
 			}
 		} catch (MalformedURLException e) {
 			// This is a strange problem. Lets remove this URI from the index.
@@ -113,6 +101,15 @@ class KeysInIndex extends StoredKeys {
 		}
 		// Other kinds of keys are never replaced.
 		return false;
+	}
+
+	/**
+	 * Is this USK in the index.
+	 * @param uri The key to search for.
+	 * @return
+	 */
+	public boolean contains(FreenetURI uri) {
+		return list.contains(uri);
 	}
 
 	public void flush() {
