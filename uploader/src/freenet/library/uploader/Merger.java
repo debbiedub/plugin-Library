@@ -181,7 +181,12 @@ final public class Merger {
 		try {
 			String[] dirsToMerge = null;
 			File directory = new File(".");
+			boolean scanForDeletions = false;
 			for (String arg : argv) {
+				if ("--scan-for-deletions".equals(arg)) {
+					scanForDeletions = true;
+					continue;
+				}
 				if (new File(directory, arg).isDirectory()) {
 					dirsToMerge = new String[1];
 					dirsToMerge[0] = arg;
@@ -189,6 +194,11 @@ final public class Merger {
 					System.out.println("No such directory " + arg);
 				}
 				break;
+			}
+			if (scanForDeletions) {
+				System.out.println("Scan for terms to be deleted");
+				findTermsToRemove(directory);
+				return;
 			}
 			if (dirsToMerge == null) {
 				dirsToMerge = directory.list(new FilenameFilter() {
@@ -214,28 +224,7 @@ final public class Merger {
 				return;
 			}
 
-			boolean directoryCreated = createMergeDirectory(directory);
-			if (!directoryCreated) {
-				System.out.println("Scan for terms to be deleted");
-				FactoryRegister.register(new ArchiverFactory() {
-
-					@Override
-					public <T, S extends ObjectStreamWriter & ObjectStreamReader> LiveArchiver<T, SimpleProgress> newArchiver(
-							S rw, String mime, int size, Priority priorityLevel) {
-						return new DiskReader<T, S>(new File(UploaderPaths.LIBRARY_CACHE),
-								rw,
-								mime, size);
-					}
-
-					@Override
-					public <T, S extends ObjectStreamWriter & ObjectStreamReader> LiveArchiver<T, SimpleProgress> newArchiver(
-							S rw, String mime, int size, LiveArchiver<T, SimpleProgress> archiver) {
-						return newArchiver(rw, mime, size, freenet.library.Priority.Bulk);
-					}
-
-				});
-				findTermsToRemove(directory);
-			}
+			createMergeDirectory(directory);
 		} catch (TaskAbortException | IllegalStateException | IOException e) {
 			e.printStackTrace();
 			exitStatus = 1;
@@ -256,6 +245,23 @@ final public class Merger {
 	 * a set with TermDeletePageEntry.
 	 */
 	private static void findTermsToRemove(File directory) {
+		FactoryRegister.register(new ArchiverFactory() {
+
+			@Override
+			public <T, S extends ObjectStreamWriter & ObjectStreamReader> LiveArchiver<T, SimpleProgress> newArchiver(
+					S rw, String mime, int size, Priority priorityLevel) {
+				return new DiskReader<T, S>(new File(UploaderPaths.LIBRARY_CACHE),
+						rw,
+						mime, size);
+			}
+
+			@Override
+			public <T, S extends ObjectStreamWriter & ObjectStreamReader> LiveArchiver<T, SimpleProgress> newArchiver(
+					S rw, String mime, int size, LiveArchiver<T, SimpleProgress> archiver) {
+				return newArchiver(rw, mime, size, freenet.library.Priority.Bulk);
+			}
+
+		});
 		final String [] filesWithToBeDeleted = getMatchingFiles(directory, TO_BE_DELETED);
 		System.out.println("There is " + filesWithToBeDeleted.length + " files to be deleted.");
 		int lastFoundNumber = 0;
@@ -416,7 +422,6 @@ final public class Merger {
 						createSelectedFiles = true;
 						doAllSelected = true;
 						doFiltered = true;
-						doToBeDeleted = true;
 						restBase = FILTERED;
 					} else {
 						restBase = PROCESSED;
@@ -424,11 +429,11 @@ final public class Merger {
 				} else {
 					createSelectedFiles = true;
 					doFiltered = true;
-					doToBeDeleted = true;
 					restBase = FILTERED;
 				}
 				doProcessed = true;
 				doNew = true;
+				doToBeDeleted = true;
 			}
 
 			@Override
@@ -489,8 +494,6 @@ final public class Merger {
 		};
 		final ProcessedFilenames processedFilenames = new ProcessedFilenames();
 		TermEntryFileWriter notMerged = null;
-		TermEntryFileWriter notMergedToBeDeleted = null;
-		boolean firstToBeDeletedAddedInNotMerged = false;
 		BlockedKeys blockedKeys = new BlockedKeys(directory, processedFilenames.doAll());
 
 		int totalTerms = 0;
@@ -568,34 +571,15 @@ final public class Merger {
 						continue;
 					}
 				}
-				// Keep the first Delete page entry among the entries to process. This will keep
-				// from starving the Delete pages while the bulk of them are processed among new
-				// entries.
-				if (tt.entryType() == EntryType.DELETE_PAGE && firstToBeDeletedAddedInNotMerged) {
-					if (notMergedToBeDeleted == null) {
-						lastToBeDeleted++;
-						String restFilename = TO_BE_DELETED + lastToBeDeleted;
-						notMergedToBeDeleted = new TermEntryFileWriter(teri.getHeader(), new File(directory, restFilename));
-					}
-					notMergedToBeDeleted.write(tt);
-					if (notMergedToBeDeleted.isFull()) {
-						notMergedToBeDeleted.close();
-						notMergedToBeDeleted = null;
-					}
-				} else {
-					if (notMerged == null) {
-						lastFoundNumber ++;
-						String restFilename = processedFilenames.restBase + lastFoundNumber;
-						notMerged = new TermEntryFileWriter(teri.getHeader(), new File(directory, restFilename));
-					}
-					notMerged.write(tt);
-					if (tt.entryType() == EntryType.DELETE_PAGE) {
-						firstToBeDeletedAddedInNotMerged = true;
-					}
-					if (notMerged.isFull()) {
-						notMerged.close();
-						notMerged = null;
-					}
+				if (notMerged == null) {
+					lastFoundNumber ++;
+					String restFilename = processedFilenames.restBase + lastFoundNumber;
+					notMerged = new TermEntryFileWriter(teri.getHeader(), new File(directory, restFilename));
+				}
+				notMerged.write(tt);
+				if (notMerged.isFull()) {
+					notMerged.close();
+					notMerged = null;
 				}
 			}
 			if (processedFilenames.processingSelectedFile) {
@@ -609,10 +593,6 @@ final public class Merger {
 		if (notMerged != null) {
 			notMerged.close();
 			notMerged = null;
-		}
-		if (notMergedToBeDeleted != null) {
-			notMergedToBeDeleted.close();
-			notMergedToBeDeleted = null;
 		}
 		for (File file : toBeRemoved) {
 			System.out.println("Removing file " + file);

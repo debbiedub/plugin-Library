@@ -35,7 +35,8 @@ public class ScanForTermsToBeDeleted {
 	private File directory;
 	private int lastFoundNumber;
 	private TermEntryFileWriter openedFile;
-	private static int CREATED_FILES = 10;
+	private int countFilledFiles;
+	private static String NEW_TO_BE_DELETED = "library.new.deletes";
 
 	/**
 	 * Don't remove too many per term. There seems to be a problem
@@ -43,7 +44,7 @@ public class ScanForTermsToBeDeleted {
 	 * is an attempt to address that without having do dig too deep
 	 * in the details of how the B-tree is persisted.
 	 */
-	private static int MAX_ENTRIES_PER_TERM = 100000;
+	private static int MAX_ENTRIES_PER_TERM = 10000;
 
 	public ScanForTermsToBeDeleted(File dir, int lastFound) {
 		directory = dir;
@@ -60,17 +61,26 @@ public class ScanForTermsToBeDeleted {
 
 	private void writeTermEntry(TermPageEntry tpe) {
 		if (openedFile == null) {
-			lastFoundNumber ++;
-			String restFilename = TO_BE_DELETED + lastFoundNumber;
+			File file = new File(directory, NEW_TO_BE_DELETED);
+			file.delete();
 
 			Map<String, String> emptyHeader = new HashMap<String, String>();
-			openedFile = new TermEntryFileWriter(emptyHeader , new File(directory, restFilename));
+			openedFile = new TermEntryFileWriter(emptyHeader, file);
 		}
 		openedFile.write(tpe);
 	}
 
+	private void rotateFile() {
+		File file = new File(directory, NEW_TO_BE_DELETED);
+		lastFoundNumber ++;
+		String restFilename = TO_BE_DELETED + lastFoundNumber;
+		file.renameTo(new File(directory, restFilename));
+
+		countFilledFiles ++;
+	}
+
 	public void run() throws TaskAbortException {
-		int countFilledFiles = 0;
+		countFilledFiles = 0;
 		int count = 0;
 		KeysInIndex keysInIndex = new KeysInIndex(directory);
 		BlockedKeys blockedKeys = new BlockedKeys(directory, false);
@@ -99,6 +109,9 @@ public class ScanForTermsToBeDeleted {
 			}
 			for (TermEntry e : set) {
 				if (e instanceof TermPageEntry) {
+					if (++countWrittenEntries > MAX_ENTRIES_PER_TERM) {
+						break;
+					}
 					TermPageEntry tpe = (TermPageEntry) e;
 					FreenetURI uri = tpe.getPage();
 					if (blockedKeys.isBlocked(uri)) {
@@ -108,9 +121,6 @@ public class ScanForTermsToBeDeleted {
 						// This term can be removed since there is a newer
 						// page in the index.
 						writeTermEntry(new TermDeletePageEntry(tpe));
-						if (++countWrittenEntries > MAX_ENTRIES_PER_TERM) {
-							break;
-						}
 					} else if (uri.isSSKForUSK()) {
 						FreenetURI usk = uri.uskForSSK();
 						long edition = usk.getEdition();
@@ -134,9 +144,6 @@ public class ScanForTermsToBeDeleted {
 								// On the other hand, SSKs will not be maintained
 								// in the index.
 								writeTermEntry(new TermDeletePageEntry(tpe));
-								if (++countWrittenEntries > MAX_ENTRIES_PER_TERM) {
-									break;
-								}
 							}
 						}
 					}
@@ -147,17 +154,18 @@ public class ScanForTermsToBeDeleted {
 			if (openedFile != null && openedFile.isFull()) {
 				openedFile.close();
 				openedFile = null;
-				countFilledFiles ++;
-				if (countFilledFiles >= CREATED_FILES) {
-					break;
-				}
+
+				rotateFile();
 			}
 		}
 		if (openedFile != null) {
 			openedFile.close();
 			openedFile = null;
+
+			rotateFile();
 		}
 		keysInIndex.flush();
+		System.out.println("Filled " + countFilledFiles + " files.");
 	}
 
 	private void setupFreenetCacheDir() {
