@@ -50,12 +50,12 @@ class KeysInIndex extends StoredKeys {
 	 * @return the latest edition number for the page or -1 if not found.
 	 */
 	long latestEdition(FreenetURI page) {
-		FreenetURI zeroedURI = page.setSuggestedEdition(0);
+		FreenetURI zeroedURI = page.setSuggestedEdition(0L);
 		return editions.getOrDefault(zeroedURI, -1L);
 	}
 
 	FreenetURI updateEdition(FreenetURI page) {
-		FreenetURI zeroedURI = page.setSuggestedEdition(0);
+		FreenetURI zeroedURI = page.setSuggestedEdition(0L);
 		long edition = page.getEdition();
 		if (editions.containsKey(zeroedURI)) {
 			final long foundEdition = editions.get(zeroedURI);
