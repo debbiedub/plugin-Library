@@ -19,6 +19,9 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
+import static java.lang.Math.max;
+import static java.lang.Math.min;
+
 import net.pterodactylus.fcp.FcpConnection;
 import freenet.library.ArchiverFactory;
 import freenet.library.FactoryRegister;
@@ -87,6 +90,28 @@ final public class Merger {
 	 * 1024) having this unbounded is a theoretical problem.
 	 */
 	private static final int MAX_SELECTED_FILES_CREATED = 500;
+
+	/**
+	 * There is no point in creating more than this amount of files since
+	 * spider finds new data and that will fill up the processed file before
+	 * this amount of files is inserted.
+	 * 
+	 * This is an estimate that depends on the spider speed in relation to
+	 * the size of the filtered, processed and deletions' files.
+	 * 
+	 * The current calculation is
+	 * * Two files inserted per hour.
+	 * * 20 Meg of new files found by Spider per hour. 3 times 6 Meg
+	 * * 300 Meg files.
+	 * => 15 hours for Spider to fill one of the files.
+	 * => 30 insertions in this time
+	 * => 50 with extra margin
+	 * 
+	 * The value is reduced from if there are files left from the previous
+	 * time, typically while running deletions the creation speed is
+	 * temporarily higher.
+	 */
+	private static final int SELECTED_FILES_CREATED_BECAUSE_OF_SPIDER_SPEED = 50;
 
 	static final Comparator<String> comparator = new StringNumberComparator();
 
@@ -378,14 +403,6 @@ final public class Merger {
 			}
 		}
 
-		int lastToBeDeleted = 0;
-		for (String filename : toBeDeletedFilesToMerge) {
-			int numberFound = Integer.parseInt(filename.substring(TO_BE_DELETED.length()));
-			if (numberFound > lastToBeDeleted) {
-				lastToBeDeleted = numberFound;
-			}
-		}
-
 		Map<IndexPeeker, TermEntryFileWriter> writers =
 				new HashMap<IndexPeeker, TermEntryFileWriter>();
 		IndexPeeker creatorPeeker = new IndexPeeker(directory);
@@ -415,7 +432,7 @@ final public class Merger {
 			ProcessedFilenames() {
 				if (selectedFilesToMerge.length > 0) {
 					doSelected = true;
-					if ((processedFilesToMerge.length - 1) * selectedFilesToMerge.length > filteredFilesToMerge.length + toBeDeletedFilesToMerge.length) {
+					if ((max(processedFilesToMerge.length - 1, 0) + toBeDeletedFilesToMerge.length) * selectedFilesToMerge.length > filteredFilesToMerge.length) {
 						// Too many processed files to go through every time.
 						// Resort all existing selected files together with
 						// the processed files into new selected files.
@@ -556,8 +573,9 @@ final public class Merger {
 					}
 					if (found) {
 						continue;
-					} else if ((writers.size() < 3 ||
-							writers.size() < 10 * (filteredFilesToMerge.length + toBeDeletedFilesToMerge.length - 1)) &&
+					} else if (writers.size() < max(3,
+								min(10 * (filteredFilesToMerge.length + processedFilesToMerge.length + toBeDeletedFilesToMerge.length),
+										SELECTED_FILES_CREATED_BECAUSE_OF_SPIDER_SPEED - selectedFilesToMerge.length)) &&
 							writers.size() < MAX_SELECTED_FILES_CREATED) {
 						lastSelected ++;
 						String selectedFilename = SELECTED + lastSelected;
