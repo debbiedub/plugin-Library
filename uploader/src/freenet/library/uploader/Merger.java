@@ -95,10 +95,10 @@ final public class Merger {
 	 * There is no point in creating more than this amount of files since
 	 * spider finds new data and that will fill up the processed file before
 	 * this amount of files is inserted.
-	 * 
+	 *
 	 * This is an estimate that depends on the spider speed in relation to
 	 * the size of the filtered, processed and deletions' files.
-	 * 
+	 *
 	 * The current calculation is
 	 * * Two files inserted per hour.
 	 * * 20 Meg of new files found by Spider per hour. 3 times 6 Meg
@@ -106,7 +106,7 @@ final public class Merger {
 	 * => 15 hours for Spider to fill one of the files.
 	 * => 30 insertions in this time
 	 * => 50 with extra margin
-	 * 
+	 *
 	 * The value is reduced from if there are files left from the previous
 	 * time, typically while running deletions the creation speed is
 	 * temporarily higher.
@@ -349,7 +349,7 @@ final public class Merger {
 	 * @return true if successful.
 	 * @throws TaskAbortException
 	 */
-	private static boolean createMergeDirectory(File directory) throws TaskAbortException {
+	private static boolean createMergeDirectory(final File directory) throws TaskAbortException {
 		InfoFileWriter ifw = new InfoFileWriter(directory);
 
 		final String[] selectedFilesToMerge = getMatchingFiles(directory, SELECTED);
@@ -367,11 +367,13 @@ final public class Merger {
 		System.out.println(outProcessed);
 		ifw.println(outProcessed);
 
+		// Used only for this output.
 		final String[] newFilesToMerge = getMatchingFiles(directory, UploaderPaths.BASE_FILENAME_PUSH_DATA);
 		final String outNew = "There is " + newFilesToMerge.length + " new files.";
 		System.out.println(outNew);
 		ifw.println(outNew);
 
+		// Used for this output and calculations on how to create files.
 		final String[] toBeDeletedFilesToMerge = getMatchingFiles(directory, TO_BE_DELETED);
 		final String outToBeDeleted = "There is " + toBeDeletedFilesToMerge.length + " to-be-deleted files.";
 		System.out.println(outToBeDeleted);
@@ -428,6 +430,9 @@ final public class Merger {
 			private int nextProcessed = 0;
 			private int nextNew = 0;
 			private int nextToBeDeleted = 0;
+			private String[] rescannedNewFilesToMerge = null;
+			private String[] rescannedToBeDeletedFilesToMerge = null;
+			private boolean isANewFile = false;
 
 			ProcessedFilenames() {
 				if (selectedFilesToMerge.length > 0) {
@@ -453,8 +458,13 @@ final public class Merger {
 				doToBeDeleted = true;
 			}
 
+			boolean isANewFile() {
+				return isANewFile;
+			}
+
 			@Override
 			public boolean hasNext() {
+				isANewFile = false;
 				if (doSelected &&
 						nextSelected < selectedFilesToMerge.length) {
 					return true;
@@ -468,10 +478,11 @@ final public class Merger {
 				if (doProcessed && nextProcessed < processedFilesToMerge.length) {
 					return true;
 				}
-				if (doNew && nextNew < newFilesToMerge.length) {
+				if (doNew && nextNew < (rescannedNewFilesToMerge = getMatchingFiles(directory, UploaderPaths.BASE_FILENAME_PUSH_DATA)).length) {
+					isANewFile = true;
 					return true;
 				}
-				if (doToBeDeleted && nextToBeDeleted < toBeDeletedFilesToMerge.length) {
+				if (doToBeDeleted && nextToBeDeleted < (rescannedToBeDeletedFilesToMerge = getMatchingFiles(directory, TO_BE_DELETED)).length) {
 					return true;
 				}
 				return false;
@@ -491,10 +502,10 @@ final public class Merger {
 					return filteredFilesToMerge[nextFiltered++];
 				} else if (doProcessed && nextProcessed < processedFilesToMerge.length) {
 					return processedFilesToMerge[nextProcessed++];
-				} else if (doNew && nextNew < newFilesToMerge.length) {
-					return newFilesToMerge[nextNew++];
-				} else if (doToBeDeleted && nextToBeDeleted < toBeDeletedFilesToMerge.length) {
-					return toBeDeletedFilesToMerge[nextToBeDeleted++];
+				} else if (doNew && nextNew < rescannedNewFilesToMerge.length) {
+					return rescannedNewFilesToMerge[nextNew++];
+				} else if (doToBeDeleted && nextToBeDeleted < rescannedToBeDeletedFilesToMerge.length) {
+					return rescannedToBeDeletedFilesToMerge[nextToBeDeleted++];
 				} else {
 					throw new IllegalArgumentException("next() called after hasNext() returned false.");
 				}
@@ -539,14 +550,7 @@ final public class Merger {
 			Iterator<TermEntry> iterator = teri.iterator();
 			while (iterator.hasNext()) {
 				TermEntry tt = iterator.next();
-				boolean isANewFile = false;
-				for (int i = 0; i < newFilesToMerge.length; i++) {
-					if (newFilesToMerge[i].equals(s)) {
-						isANewFile = true;
-						break;
-					}
-				}
-				if (isANewFile && tt.toBeDropped()) {
+				if (processedFilenames.isANewFile() && tt.toBeDropped()) {
 					 System.out.println("Ignoring term " + tt);
 					 continue;
 				}
