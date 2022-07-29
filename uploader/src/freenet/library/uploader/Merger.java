@@ -575,7 +575,7 @@ final public class Merger {
 						continue;
 					} else if (writers.size() < max(3,
 								min(10 * (filteredFilesToMerge.length + processedFilesToMerge.length + toBeDeletedFilesToMerge.length),
-										SELECTED_FILES_CREATED_BECAUSE_OF_SPIDER_SPEED - selectedFilesToMerge.length)) &&
+										SELECTED_FILES_CREATED_BECAUSE_OF_SPIDER_SPEED)) &&
 							writers.size() < MAX_SELECTED_FILES_CREATED) {
 						lastSelected ++;
 						String selectedFilename = SELECTED + lastSelected;
