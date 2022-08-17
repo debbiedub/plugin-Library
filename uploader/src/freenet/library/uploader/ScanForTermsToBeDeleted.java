@@ -124,27 +124,37 @@ public class ScanForTermsToBeDeleted {
 					} else if (uri.isSSKForUSK()) {
 						FreenetURI usk = uri.uskForSSK();
 						long edition = usk.getEdition();
-						if (!blockedKeys.isBlocked(usk) &&
-								!blockedKeys.isBlocked(usk.setSuggestedEdition(edition + 1L)) &&
-								!blockedKeys.isBlocked(usk.setSuggestedEdition(edition + 2L)) &&
-								!blockedKeys.isBlocked(usk.setSuggestedEdition(edition + 3L)) &&
-								!blockedKeys.isBlocked(usk.setSuggestedEdition(edition + 4L)) &&
-								!blockedKeys.isBlocked(usk.setSuggestedEdition(edition + 5L))
-								) {
-							if (keysInIndex.isReplaced(usk) || keysInIndex.contains(usk)) {
-								// This term can be removed since there is an USK
-								// with a newer page in the index.
-								// This is a somewhat half-hearted logic. For pages
-								// not updated to many times between the SSK was
-								// entered in the index and the USK is found, this
-								// is fine.
-								// For pages updated, the SSK will start to be
-								// removed before the replacement is entirely in 
-								// the index.
-								// On the other hand, SSKs will not be maintained
-								// in the index.
-								writeTermEntry(new TermDeletePageEntry(tpe));
-							}
+						if (blockedKeys.isBlocked(usk)) {
+							continue;
+						}
+						if (blockedKeys.isBlocked(usk.setSuggestedEdition(edition + 1L))) {
+							continue;
+						}
+						if (blockedKeys.isBlocked(usk.setSuggestedEdition(edition + 2L))) {
+							continue;
+						}
+						if (blockedKeys.isBlocked(usk.setSuggestedEdition(edition + 3L))) {
+							continue;
+						}
+						if (blockedKeys.isBlocked(usk.setSuggestedEdition(edition + 4L))) {
+							continue;
+						}
+						if (blockedKeys.isBlocked(usk.setSuggestedEdition(edition + 5L))) {
+							continue;
+						}
+						if (keysInIndex.isReplaced(usk) || keysInIndex.contains(usk)) {
+							// This term can be removed since there is an USK
+							// with a newer page in the index.
+							// This is a somewhat half-hearted logic. For pages
+							// not updated to many times between the SSK was
+							// entered in the index and the USK is found, this
+							// is fine.
+							// For pages updated, the SSK will start to be
+							// removed before the replacement is entirely in 
+							// the index.
+							// On the other hand, SSKs will not be maintained
+							// in the index.
+							writeTermEntry(new TermDeletePageEntry(tpe));
 						}
 					}
 				}
