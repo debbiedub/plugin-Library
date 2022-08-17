@@ -25,12 +25,11 @@ class KeysInIndex extends StoredKeys {
 
 	/**
 	 * Constructor.
-	 * @param directory 
-	 * @param doAll will reset the list.
+	 * @param dir is the directory where the file is found and stored.
 	 */
 	
 	public KeysInIndex(File dir) {
-		super(dir, UploaderPaths.BASE_FILENAME_DATA + "keysinindex", false);
+		super(dir, UploaderPaths.BASE_FILENAME_DATA + "keysinindex", true);
 		HashSet<FreenetURI> replacedList = new HashSet<FreenetURI>();
 		for (FreenetURI key : list) {
 			FreenetURI replacedURI = updateEdition(key);

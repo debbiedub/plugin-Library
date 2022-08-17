@@ -24,7 +24,7 @@ import freenet.library.io.FreenetURI;
 
 public class StoredKeys {
 
-	protected static String filename;
+	protected String filename;
 	protected Set<FreenetURI> list = new HashSet<FreenetURI>();
 	protected File directory;
 
