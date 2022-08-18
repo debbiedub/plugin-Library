@@ -130,6 +130,7 @@ class DownloadOneEdition {
 	private AdHocDataReader reader = new AdHocDataReader();
 
 	private static final long OPERATION_GIVE_UP_TIME = TimeUnit.HOURS.toMillis(2);
+	private static final long FREE_SPACE_KEPT_LEFT = 1024 * 1024 * 1024;
 
 	class RotatingQueue<E> extends LinkedBlockingQueue<E> {
 		/**
@@ -717,6 +718,12 @@ class DownloadOneEdition {
 		if (result) {
 			toRefetch.offer(page);
 			counterRefetchSuccess++;
+			// If there is not enough room left we will remove the recently
+			// fetched file. If we didn't manage to fetch it, it will be
+			// queued for upload.
+			if (page.getAnyFile().getFreeSpace() < FREE_SPACE_KEPT_LEFT) {
+				page.deleteFile();
+			}
 		} else {
 			doHandleUnfetchable(page);
 			counterRefetchFailed++;
@@ -841,22 +848,31 @@ class DownloadOneEdition {
 		}
 
 		public void run() {
-			if (toParse.size() > 0) {
-				// Don't delete anything if the parsing is not completed.
-				count = 1;
-				return;
-			}
-			if (toFetch.size() > 0) {
-				// Don't delete anything if the fetching is not completed.
-				count = 1;
-				return;
-			}
 			if (allFiles.size() == 0) {
 				if (handle != null) {
 					handle.cancel(true);
 					handle = null;
 				}
 				return;
+			}
+			File anyFile = null;
+			for (File f : allFiles) {
+				anyFile = f;
+				break;
+			}
+			if (anyFile.getFreeSpace() > FREE_SPACE_KEPT_LEFT) {
+				if (toParse.size() > 0) {
+					// Don't delete anything if the parsing is not completed.
+					count = 1;
+					return;
+				}
+				if (toFetch.size() > 0) {
+					// Don't delete anything if the fetching is not completed.
+					count = 1;
+					return;
+				}
+			} else {
+				count += 1;
 			}
 			// Sort in oldest order.
 			SortedSet<File> toRemove = new TreeSet<File>(new Comparator<File>() {
