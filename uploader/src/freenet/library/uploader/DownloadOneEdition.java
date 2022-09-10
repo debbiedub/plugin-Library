@@ -132,6 +132,11 @@ class DownloadOneEdition {
 	private static final long OPERATION_GIVE_UP_TIME = TimeUnit.HOURS.toMillis(2);
 	private static final long FREE_SPACE_KEPT_LEFT = 1024 * 1024 * 1024;
 
+	/**
+	 * Keep track of if we are below or at the threshold or not.
+	 */
+	private boolean belowSpaceThreshold = false;
+
 	class RotatingQueue<E> extends LinkedBlockingQueue<E> {
 		/**
 		 * Serializeable.
@@ -378,7 +383,6 @@ class DownloadOneEdition {
 	private int counterRefetchUploadFailed = 0;
 
 	private int edition;
-
 
 	private static String STATISTICS_FORMAT_PREFIX = "%-24s%7d%7d%7d";
 
@@ -723,9 +727,16 @@ class DownloadOneEdition {
 			// queued for upload.
 			if (page.getAnyFile().getFreeSpace() < FREE_SPACE_KEPT_LEFT) {
 				page.deleteFile();
+				belowSpaceThreshold = true;
+			} else {
+				belowSpaceThreshold = false;
 			}
 		} else {
-			doHandleUnfetchable(page);
+			if (page.getAnyFile().exists()) {
+				toUploadUnfetchable.offer(page);
+			} else {
+				toRefetch.offer(page);
+			}
 			counterRefetchFailed++;
 		}
 		return result;
@@ -756,7 +767,7 @@ class DownloadOneEdition {
 			toParse.offer(page);
 			counterFetchSuccess++;
 		} else {
-			doHandleUnfetchable(page);
+			toFetchUnfetchable.offer(page);
 			counterFetchFailed++;
 		}
 		return result;
@@ -769,14 +780,6 @@ class DownloadOneEdition {
 			toUploadUnfetchable.offer(page);
 		} else {
 			toRefetch.offer(page);
-		}
-	}
-
-	private void doHandleUnfetchable(Page page) {
-		if (page.getAnyFile().exists()) {
-			toUploadUnfetchable.offer(page);
-		} else {
-			toFetchUnfetchable.offer(page);
 		}
 	}
 
@@ -1322,7 +1325,7 @@ class DownloadOneEdition {
 				}
 			}
 
-			if (!startedFetch) {
+			if (!startedFetch || belowSpaceThreshold || random.nextInt(100) == 0) {
 				final Page page = toRefetch.poll();
 				if (page != null) {
 					FCPexecutors.execute(new Runnable() {
