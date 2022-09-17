@@ -224,6 +224,8 @@ public class TermEntryReaderWriter implements ObjectStreamReader<TermEntry>, Obj
 			default:
 				throw new RuntimeException("Cannot happen");
 			}
+		case INFO_MESSAGE:
+			return new TermInfoMessageEntry(subj);
 		default:
 			throw new AssertionError();
 		}
@@ -249,6 +251,7 @@ public class TermEntryReaderWriter implements ObjectStreamReader<TermEntry>, Obj
 		switch (type) {
 		case PAGE:
 		case DELETE_PAGE:
+		case INFO_MESSAGE:
 			writeObjectVersion2(en, dos);
 			break;
 		default:
@@ -336,6 +339,8 @@ public class TermEntryReaderWriter implements ObjectStreamReader<TermEntry>, Obj
 					}
 				}
 			}
+			return;
+		case INFO_MESSAGE:
 			return;
 		default:
 			throw new RuntimeException("Not implemented");

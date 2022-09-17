@@ -13,6 +13,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -28,6 +29,7 @@ import freenet.library.FactoryRegister;
 import freenet.library.Priority;
 import freenet.library.index.TermEntry;
 import freenet.library.index.TermEntry.EntryType;
+import freenet.library.index.TermInfoMessageEntry;
 import freenet.library.index.TermPageEntry;
 import freenet.library.io.ObjectStreamReader;
 import freenet.library.io.ObjectStreamWriter;
@@ -433,6 +435,7 @@ final public class Merger {
 			private String[] rescannedNewFilesToMerge = null;
 			private String[] rescannedToBeDeletedFilesToMerge = null;
 			private boolean isANewFile = false;
+			private boolean isAToBeDeletedFile = false;
 
 			ProcessedFilenames() {
 				if (selectedFilesToMerge.length > 0) {
@@ -462,9 +465,14 @@ final public class Merger {
 				return isANewFile;
 			}
 
+			boolean isAToBeDeletedFile() {
+				return isAToBeDeletedFile;
+			}
+
 			@Override
 			public boolean hasNext() {
 				isANewFile = false;
+				isAToBeDeletedFile = false;
 				if (doSelected &&
 						nextSelected < selectedFilesToMerge.length) {
 					return true;
@@ -483,6 +491,7 @@ final public class Merger {
 					return true;
 				}
 				if (doToBeDeleted && nextToBeDeleted < (rescannedToBeDeletedFilesToMerge = getMatchingFiles(directory, TO_BE_DELETED)).length) {
+					isAToBeDeletedFile = true;
 					return true;
 				}
 				return false;
@@ -525,6 +534,8 @@ final public class Merger {
 		BlockedKeys blockedKeys = new BlockedKeys(directory, processedFilenames.doAll());
 
 		int totalTerms = 0;
+		int termsLeftFromInputFile = 0;
+		boolean beforeFirstFilteredTerm = true;
 
 		DirectoryCreator creator = null;
 
@@ -550,16 +561,24 @@ final public class Merger {
 			Iterator<TermEntry> iterator = teri.iterator();
 			while (iterator.hasNext()) {
 				TermEntry tt = iterator.next();
+				if (beforeFirstFilteredTerm) {
+					if (tt.entryType() == EntryType.INFO_MESSAGE) {
+						// The file referenced is now fully processed.
+						// We throw away the message.
+						continue;
+					}
+				}
 				if (processedFilenames.isANewFile() && tt.toBeDropped()) {
 					 System.out.println("Ignoring term " + tt);
 					 continue;
 				}
-				totalTerms ++;
+				totalTerms ++; // We will count extra for the info messages
 				if (tt.entryType() == EntryType.PAGE) {
 					TermPageEntry entry = (TermPageEntry) tt;
 					blockedKeys.block(entry.getPage());
 				}
-				if (creatorPeeker.includes(tt.subj)) {
+				if (tt.entryType() != EntryType.INFO_MESSAGE &&
+						creatorPeeker.includes(tt.subj)) {
 					creator.putEntry(tt);
 					processedFilenames.movedTerms ++;
 					continue;
@@ -599,10 +618,27 @@ final public class Merger {
 					notMerged = new TermEntryFileWriter(teri.getHeader(), new File(directory, restFilename));
 				}
 				notMerged.write(tt);
-				if (notMerged.isFull()) {
+				if (beforeFirstFilteredTerm) {
+					beforeFirstFilteredTerm = false;
+				}
+				if (tt.entryType() == EntryType.INFO_MESSAGE) {
+					System.out.println(termsLeftFromInputFile + " terms left from " + tt.subj);
+					termsLeftFromInputFile = 0;
+				} else {
+					termsLeftFromInputFile++;
+				}
+				if (tt.entryType() == EntryType.INFO_MESSAGE &&
+						notMerged.isAlmostFull()) {
+					notMerged.close();
+					notMerged = null;
+				} else if (notMerged.isFull()) {
 					notMerged.close();
 					notMerged = null;
 				}
+			}
+			if ((processedFilenames.isANewFile() || processedFilenames.isAToBeDeletedFile()) &&
+					notMerged != null) {
+				notMerged.write(new TermInfoMessageEntry(s + " found " + new Date().toString()));
 			}
 			if (processedFilenames.processingSelectedFile) {
 				System.out.println("Items: " + processedFilenames.movedTerms +
