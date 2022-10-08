@@ -130,12 +130,14 @@ class DownloadOneEdition {
 	private AdHocDataReader reader = new AdHocDataReader();
 
 	private static final long OPERATION_GIVE_UP_TIME = TimeUnit.HOURS.toMillis(2);
-	private static final long FREE_SPACE_KEPT_LEFT = 1024 * 1024 * 1024;
+	private static final long FREE_SPACE_LEFT_LIMIT = 1024L * 1024L * 1024L;
 
 	/**
 	 * Keep track of if we are below or at the threshold or not.
+	 *
+	 * If this is less than half of the threshold, this will be two.
 	 */
-	private boolean belowSpaceThreshold = false;
+	private long timesBelowSpaceThreshold = 0L;
 
 	class RotatingQueue<E> extends LinkedBlockingQueue<E> {
 		/**
@@ -381,6 +383,7 @@ class DownloadOneEdition {
 	private int counterUploadUnfetchableFailed = 0;
 	private int counterRefetchUploadSuccess = 0;
 	private int counterRefetchUploadFailed = 0;
+	private int counterRemovedBecauseOfNotEnoughFreeSpaceLeft = 0;
 
 	private int edition;
 
@@ -420,6 +423,9 @@ class DownloadOneEdition {
 		}
 		if (unfetchables.size() > 0) {
 			sb.append("Unfetchables from previous run: " + unfetchables.size() + "\n");
+		}
+		if (counterRemovedBecauseOfNotEnoughFreeSpaceLeft > 0) {
+			sb.append("Removed from cache because not enough free space: " + counterRemovedBecauseOfNotEnoughFreeSpaceLeft + "\n");
 		}
 		logger.info("Statistics for " + edition + ":\n" + sb.toString() + "End Statistics.");
 	}
@@ -725,11 +731,10 @@ class DownloadOneEdition {
 			// If there is not enough room left we will remove the recently
 			// fetched file. If we didn't manage to fetch it, it will be
 			// queued for upload.
-			if (page.getAnyFile().getFreeSpace() < FREE_SPACE_KEPT_LEFT) {
+			timesBelowSpaceThreshold = FREE_SPACE_LEFT_LIMIT / page.getAnyFile().getFreeSpace(); 
+			if (timesBelowSpaceThreshold > 0) {
 				page.deleteFile();
-				belowSpaceThreshold = true;
-			} else {
-				belowSpaceThreshold = false;
+				counterRemovedBecauseOfNotEnoughFreeSpaceLeft++;
 			}
 		} else {
 			if (page.getAnyFile().exists()) {
@@ -863,7 +868,7 @@ class DownloadOneEdition {
 				anyFile = f;
 				break;
 			}
-			if (anyFile.getFreeSpace() > FREE_SPACE_KEPT_LEFT) {
+			if (anyFile.getFreeSpace() > FREE_SPACE_LEFT_LIMIT) {
 				if (toParse.size() > 0) {
 					// Don't delete anything if the parsing is not completed.
 					count = 1;
@@ -1325,20 +1330,31 @@ class DownloadOneEdition {
 				}
 			}
 
-			if (!startedFetch || belowSpaceThreshold || random.nextInt(100) == 0) {
-				final Page page = toRefetch.poll();
-				if (page != null) {
-					FCPexecutors.execute(new Runnable() {
-						@Override
-						public void run() {
-							MeasureTime t = new MeasureTime(fetchTimes);
-							boolean result = doRefetch(page);
-							t.done();
-							logger.finer("Fetched Refetch" + (result ? "" : " failed") + ".");
-						}
-					});
-					startedFetch = true;
-				}
+			if (!startedFetch || timesBelowSpaceThreshold > 0 || random.nextInt(200) == 0) {
+				// We are queuing at least once.
+				int laps = 0;
+				do {
+					laps++;
+					final Page page = toRefetch.poll();
+					if (page != null) {
+						FCPexecutors.execute(new Runnable() {
+							@Override
+							public void run() {
+								MeasureTime t = new MeasureTime(fetchTimes);
+								boolean result = doRefetch(page);
+								t.done();
+								logger.finer("Fetched Refetch" + (result ? "" : " failed") + ".");
+							}
+						});
+						startedFetch = true;
+					}
+					// If there is not enough space left we are queuing three for every fetch,
+					// if there is less than half of the space left we are queuing eight, 
+					// if there is less than three times we are queuing 15 for every fetch...
+					// This way, when the space is tight we are increasing the amount of
+					// refetches over fetches.  This will slow down the fetches while the 
+					// refetched files are cleaned out.
+				} while (laps < (1 + timesBelowSpaceThreshold) * (1 + timesBelowSpaceThreshold));
 			}
 		}
 
