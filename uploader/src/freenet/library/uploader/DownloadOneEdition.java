@@ -1483,7 +1483,9 @@ class DownloadOneEdition {
 		if (connection == null) {
 			throw new IllegalArgumentException("No connection.");
 		}
-		final SubscribeUSK subscriber = new SubscribeUSK(uri + "-1", "USK");
+		// If the uri is given with the edition, restart at edition 0 anyway
+		String uristring = uri.toString().replaceAll("/[0-9]*/?$", "/0");
+		final SubscribeUSK subscriber = new SubscribeUSK(uristring, "USK");
 		subscriber.setActive(true);
 		final int[] editions = new int[1];
 		final FreenetURI[] newUris = new FreenetURI[1];
