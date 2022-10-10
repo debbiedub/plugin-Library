@@ -302,17 +302,23 @@ class DownloadOneEdition {
 		 * RANGE_ADD_DEFER_TIME. Increasing the time will eventually reduce the
 		 * frequency of fetching unfetchables in favor of re-fetching.
 		 */
-		void fetchFailed() {
+		void deferFetchAgain() {
 			timeToNextFetchAttempt += random.nextInt(Long.valueOf(RANGE_ADD_DEFER_TIME).intValue());
 			calculateNextFetchAttempt();
-			logAttempts.append("Failed at ").append(new Date()).append(" and deferred to ").append(nextFetchAttempt).append("\n");
+			logAttempts.append("Deferring at ").append(new Date()).append(" until ").append(nextFetchAttempt).append("\n");
 		}
 
 		boolean fetchAvailable() {
 			return new Date().after(nextFetchAttempt);
 		}
 
-		void fetchTimerReset() {
+		/**
+		 * Reset counting for calculation of the time until the next attempt to
+		 * fetch this page.
+		 *
+		 * This should normally be called when changing queue.
+		 */
+		void deferFetchReset() {
 			timeToNextFetchAttempt = START_DEFER_TIME;
 			logAttempts = new StringBuffer();
 			logAttempts.append("Deferred to ").append(new Date()).append("\n");
@@ -366,7 +372,7 @@ class DownloadOneEdition {
 	/**
 	 * Pages that have been successfully fetched.
 	 */
-	private RotatingQueue<Page> toRefetch = new RotatingQueue<Page>(random);
+	private AvoidRecentFetchesQueue toRefetch = new AvoidRecentFetchesQueue(random);
 	private AvoidRecentFetchesQueue toUploadUnfetchable = new AvoidRecentFetchesQueue(random);
 
 	private int counterParseSuccess = 0;
@@ -538,11 +544,7 @@ class DownloadOneEdition {
 		connection.removeFcpListener(listener);
 
 		boolean result = results[0];
-		if (result) {
-			page.fetchTimerReset();
-		} else {
-			page.fetchFailed();
-		}
+		page.deferFetchAgain();
 
 		return result;
 	}
@@ -702,6 +704,7 @@ class DownloadOneEdition {
 	private boolean doFetchUnfetchable(Page page) {
 		boolean result = fetch(page);
 		if (result) {
+			page.deferFetchReset();
 			toParse.offer(page);
 			counterFetchUnfetchableSuccess++;
 		} else {
@@ -714,6 +717,7 @@ class DownloadOneEdition {
 	private boolean doRefetchToUpload(Page page) {
 		boolean result = fetch(page);
 		if (result) {
+			page.deferFetchReset();
 			toRefetch.offer(page);
 			counterRefetchUploadSuccess++;
 		} else {
@@ -738,6 +742,7 @@ class DownloadOneEdition {
 			}
 		} else {
 			if (page.getAnyFile().exists()) {
+				page.deferFetchReset();
 				toUploadUnfetchable.offer(page);
 			} else {
 				toRefetch.offer(page);
@@ -768,6 +773,7 @@ class DownloadOneEdition {
 
 	private boolean doFetch(Page page) {
 		boolean result = fetch(page);
+		page.deferFetchReset();
 		if (result) {
 			toParse.offer(page);
 			counterFetchSuccess++;
@@ -1082,7 +1088,7 @@ class DownloadOneEdition {
 				return;
 			}
 
-			page = toRefetch.poll();
+			page = toRefetch.pollNotDeferred();
 			if (page != null) {
 				boolean result = doRefetch(page);
 				logger.finer("Fetched Refetch" + (result ? "" : " failed") + ".");
@@ -1335,15 +1341,16 @@ class DownloadOneEdition {
 				int laps = 0;
 				do {
 					laps++;
-					final Page page = toRefetch.poll();
+					final Page page = toRefetch.pollNotDeferred();
 					if (page != null) {
 						FCPexecutors.execute(new Runnable() {
 							@Override
 							public void run() {
+								String log = page.logAttempts.toString();
 								MeasureTime t = new MeasureTime(fetchTimes);
 								boolean result = doRefetch(page);
 								t.done();
-								logger.finer("Fetched Refetch" + (result ? "" : " failed") + ".");
+								logger.finer(log + "Fetched Refetch" + (result ? "" : " failed") + ".");
 							}
 						});
 						startedFetch = true;
