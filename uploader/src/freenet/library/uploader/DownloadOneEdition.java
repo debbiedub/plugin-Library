@@ -192,7 +192,7 @@ class DownloadOneEdition {
 	 */
 	private class Page {
 		private final long START_DEFER_TIME = TimeUnit.HOURS.toMillis(4);
-		private final long RANGE_ADD_DEFER_TIME = TimeUnit.HOURS.toMillis(48);
+		private final long RANGE_ADD_DEFER_TIME = TimeUnit.HOURS.toMillis(20);
 
 		private FreenetURI uri;
 		private int level = 0;
