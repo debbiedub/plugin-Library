@@ -584,7 +584,8 @@ final public class Merger {
 					continue;
 				}
 
-				if (processedFilenames.createSelectedFiles) {
+				if (tt.entryType() != EntryType.INFO_MESSAGE &&
+						processedFilenames.createSelectedFiles) {
 					// They are all to be sorted.
 					boolean found = false;
 					for (Map.Entry<IndexPeeker, TermEntryFileWriter> entry : writers.entrySet()) {
