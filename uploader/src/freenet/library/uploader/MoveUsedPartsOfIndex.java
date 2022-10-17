@@ -20,7 +20,7 @@ import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.LinkedBlockingDeque;
 
 import freenet.library.io.FreenetURI;
 
@@ -29,8 +29,8 @@ import freenet.library.io.FreenetURI;
  */
 class MoveUsedPartsOfIndex extends AdHocDataReader {
 	private FreenetURI uri;
-	private LinkedBlockingQueue<Page> objectQueue =
-		new LinkedBlockingQueue<Page>();
+	private LinkedBlockingDeque<Page> objectQueue =
+		new LinkedBlockingDeque<Page>();
 
 	public MoveUsedPartsOfIndex(FreenetURI u) {
 		uri = u;
@@ -89,7 +89,7 @@ class MoveUsedPartsOfIndex extends AdHocDataReader {
 		while (objectQueue.size() > 0) {
 			Page page;
 			try {
-				page = objectQueue.take();
+				page = objectQueue.takeLast();
 			} catch (InterruptedException e1) {
 				// TODO Auto-generated catch block
 				e1.printStackTrace();
@@ -102,7 +102,9 @@ class MoveUsedPartsOfIndex extends AdHocDataReader {
 				Files.createLink(Paths.get(toDirectory.getPath(), page.uri.toString()), Paths.get(page.uri.toString()));
 				inputStream = new FileInputStream(page.uri.toString());
 				count++;
-				System.out.println("Read file " + count + " in " + page.uri + " level " + page.level + " left: " + objectQueue.size());
+				System.out.println("Read " + count + " files. " +
+						"Still queued: " + objectQueue.size() + ". " +
+						"URI " + page.uri + " at level " + page.level);
 			} catch (IOException e) {
 				System.out.println("Cannot find file " + page.uri);
 				e.printStackTrace();
