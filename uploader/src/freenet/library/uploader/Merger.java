@@ -619,9 +619,7 @@ final public class Merger {
 					notMerged = new TermEntryFileWriter(teri.getHeader(), new File(directory, restFilename));
 				}
 				notMerged.write(tt);
-				if (beforeFirstFilteredTerm) {
-					beforeFirstFilteredTerm = false;
-				}
+				beforeFirstFilteredTerm = false;
 				if (tt.entryType() == EntryType.INFO_MESSAGE) {
 					System.out.println(termsLeftFromInputFile + " terms left from " + tt.subj);
 					termsLeftFromInputFile = 0;
