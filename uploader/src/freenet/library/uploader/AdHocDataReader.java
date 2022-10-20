@@ -63,7 +63,6 @@ class AdHocDataReader {
 
 			} catch (ClassCastException e) {
 				logger.severe("Cannot process BinInfo value " + value.getID() + " for " + uriProcessor.getURI());
-				throw new RuntimeException("Cannot process BinInfo value " + value.getID() + " for " + uriProcessor.getURI(), e);
 			}
 		}
 		return foundChildren;
