@@ -61,6 +61,6 @@ class TermEntryFileWriter {
 	}
 
 	public boolean isAlmostFull() {
-		return counter >= 900000;
+		return counter >= 650000;
 	}
 }
