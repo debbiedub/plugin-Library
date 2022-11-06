@@ -161,7 +161,7 @@ public class ScanForTermsToBeDeleted {
 			}
 			set.deflate();
 			// Do one file full of removals at the time.
-			if (openedFile != null && openedFile.isFull()) {
+			if (openedFile != null && openedFile.isFullDeletionsFile()) {
 				openedFile.close();
 				openedFile = null;
 
