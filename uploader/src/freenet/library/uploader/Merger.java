@@ -545,6 +545,7 @@ final public class Merger {
 				return processedFilenames;
 			}
 		}) {
+			int termsInFile = 0;
 			System.out.println("File: " + s);
 			File file = new File(s);
 			FileInputStream fileInputStream;
@@ -561,6 +562,7 @@ final public class Merger {
 			Iterator<TermEntry> iterator = teri.iterator();
 			while (iterator.hasNext()) {
 				TermEntry tt = iterator.next();
+				termsInFile++;
 				if (beforeFirstFilteredTerm) {
 					if (tt.entryType() == EntryType.INFO_MESSAGE) {
 						// The file referenced is now fully processed.
@@ -637,7 +639,7 @@ final public class Merger {
 			}
 			if ((processedFilenames.isANewFile() || processedFilenames.isAToBeDeletedFile()) &&
 					notMerged != null) {
-				notMerged.write(new TermInfoMessageEntry(s + " found " + new Date().toString()));
+				notMerged.write(new TermInfoMessageEntry(s + " found " + new Date().toString() + " with " + termsInFile + " entries."));
 			}
 			if (processedFilenames.processingSelectedFile) {
 				System.out.println("Items: " + processedFilenames.movedTerms +
