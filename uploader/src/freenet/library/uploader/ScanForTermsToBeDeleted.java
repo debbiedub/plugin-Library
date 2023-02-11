@@ -82,6 +82,7 @@ public class ScanForTermsToBeDeleted {
 	public void run() throws TaskAbortException {
 		countFilledFiles = 0;
 		int termNumber = 0;
+		boolean termOverflow = false;
 		KeysInIndex keysInIndex = new KeysInIndex(directory);
 		BlockedKeys blockedKeys = new BlockedKeys(directory, false);
 		for (Iterator<String> i = idxFreenet.ttab.keySetAutoDeflate().iterator();
@@ -95,6 +96,7 @@ public class ScanForTermsToBeDeleted {
 			int countWrittenEntriesThisTerm = 0;
 			for (TermEntry e : set) {
 				if (countWrittenEntriesThisTerm >= MAX_ENTRIES_PER_TERM) {
+					termOverflow = true;
 					break;
 				}
 				if (e instanceof TermPageEntry) {
@@ -181,6 +183,9 @@ public class ScanForTermsToBeDeleted {
 		}
 		keysInIndex.flush();
 		System.out.println("Filled " + countFilledFiles + " files.");
+		if (termOverflow) {
+		    System.out.println("Some terms that were not fully deleted.");
+		}
 	}
 
 	private void setupFreenetCacheDir() {
