@@ -48,7 +48,7 @@ public class FreenetURI implements Cloneable, Serializable {
 			return;
 		}
  
-		if (!contents.matches("^.*@(.*,.*,A.*|)$")) {
+		if (!contents.matches("^.*@(.*,.*,A.*(/.*)?|)$")) {
 			throw new MalformedURLException("Cannot find cryptoKey and routingKey structure: " + uri);
 		}
 	}
