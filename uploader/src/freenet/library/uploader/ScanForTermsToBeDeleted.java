@@ -83,6 +83,7 @@ public class ScanForTermsToBeDeleted {
 		countFilledFiles = 0;
 		int termNumber = 0;
 		boolean termOverflow = false;
+		int emptyTerms = 0;
 		KeysInIndex keysInIndex = new KeysInIndex(directory);
 		BlockedKeys blockedKeys = new BlockedKeys(directory, false);
 		for (Iterator<String> i = idxFreenet.ttab.keySetAutoDeflate().iterator();
@@ -156,6 +157,9 @@ public class ScanForTermsToBeDeleted {
 					}
 				}
 			}
+			if (set.size() == 0) {
+			    emptyTerms++;
+			}
 			System.out.print("                                ");
 			System.out.print("                                ");
 			System.out.print("                                \r");
@@ -183,6 +187,10 @@ public class ScanForTermsToBeDeleted {
 		}
 		keysInIndex.flush();
 		System.out.println("Filled " + countFilledFiles + " files.");
+		if (emptyTerms > 0) {
+		    System.out.println("There were " + emptyTerms +
+				       " terms without entries.");
+		}
 		if (termOverflow) {
 		    System.out.println("Some terms that were not fully deleted.");
 		}
