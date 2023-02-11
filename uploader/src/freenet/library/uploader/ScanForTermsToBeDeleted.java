@@ -81,39 +81,30 @@ public class ScanForTermsToBeDeleted {
 
 	public void run() throws TaskAbortException {
 		countFilledFiles = 0;
-		int count = 0;
+		int termNumber = 0;
 		KeysInIndex keysInIndex = new KeysInIndex(directory);
 		BlockedKeys blockedKeys = new BlockedKeys(directory, false);
 		for (Iterator<String> i = idxFreenet.ttab.keySetAutoDeflate().iterator();
 				i.hasNext();) {
-			count++;
+			termNumber++;
 			String term = i.next();
-			System.out.println("" + count + " " + term);
+			System.out.print("" + termNumber + " " + term + "\r");
 			idxFreenet.ttab.inflate(term);
 			SkeletonBTreeSet<TermEntry> set = idxFreenet.ttab.get(term);
 			set.inflate();
-			int countWrittenEntries = 0;
+			int countWrittenEntriesThisTerm = 0;
 			for (TermEntry e : set) {
+				if (countWrittenEntriesThisTerm >= MAX_ENTRIES_PER_TERM) {
+					break;
+				}
 				if (e instanceof TermPageEntry) {
 					TermPageEntry tpe = (TermPageEntry) e;
 					if (tpe.toBeDropped()) {
 						writeTermEntry(new TermDeletePageEntry(tpe));
-						if (++countWrittenEntries > MAX_ENTRIES_PER_TERM) {
-							break;
-						}
 						continue;
 					}
 					FreenetURI uri = tpe.getPage();
 					keysInIndex.add(uri);
-				}
-			}
-			for (TermEntry e : set) {
-				if (e instanceof TermPageEntry) {
-					if (++countWrittenEntries > MAX_ENTRIES_PER_TERM) {
-						break;
-					}
-					TermPageEntry tpe = (TermPageEntry) e;
-					FreenetURI uri = tpe.getPage();
 					if (blockedKeys.isBlocked(uri)) {
 						continue;
 					}
@@ -121,7 +112,10 @@ public class ScanForTermsToBeDeleted {
 						// This term can be removed since there is a newer
 						// page in the index.
 						writeTermEntry(new TermDeletePageEntry(tpe));
-					} else if (uri.isSSKForUSK()) {
+						++countWrittenEntriesThisTerm;
+						continue;
+					}
+					if (uri.isSSKForUSK()) {
 						FreenetURI usk = uri.uskForSSK();
 						long edition = usk.getEdition();
 						if (blockedKeys.isBlocked(usk)) {
@@ -155,11 +149,22 @@ public class ScanForTermsToBeDeleted {
 							// On the other hand, SSKs will not be maintained
 							// in the index.
 							writeTermEntry(new TermDeletePageEntry(tpe));
+							++countWrittenEntriesThisTerm;
 						}
 					}
 				}
 			}
+			System.out.print("                                ");
+			System.out.print("                                ");
+			System.out.print("                                \r");
+			if (countWrittenEntriesThisTerm > 0) {
+			    System.out.println("" + termNumber + " " +
+					       term + " " +
+					       countWrittenEntriesThisTerm + "/" +
+					       set.size());
+			}
 			set.deflate();
+
 			// Do one file full of removals at the time.
 			if (openedFile != null && openedFile.isFullDeletionsFile()) {
 				openedFile.close();
