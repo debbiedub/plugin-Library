@@ -55,6 +55,9 @@ public class StoredKeys {
 		}
 	}
 
+	protected StoredKeys() {
+	}
+
 	public void flush() {
 		String newFilename = filename + ".new";
 		File newFile = new File(directory, newFilename);

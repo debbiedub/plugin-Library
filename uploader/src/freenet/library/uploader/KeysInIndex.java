@@ -41,6 +41,9 @@ class KeysInIndex extends StoredKeys {
 		list.removeAll(replacedList);
 	}
 
+	protected KeysInIndex() {
+	}
+
 	/**
 	 * @param page Page to search for.
 	 * @return the latest edition number for the page or -1 if not found.
