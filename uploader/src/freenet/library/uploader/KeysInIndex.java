@@ -8,6 +8,7 @@ import java.net.MalformedURLException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import freenet.library.io.FreenetURI;
 
@@ -30,15 +31,14 @@ class KeysInIndex extends StoredKeys {
 	
 	public KeysInIndex(File dir) {
 		super(dir, UploaderPaths.BASE_FILENAME_DATA + "keysinindex", true);
-		HashSet<FreenetURI> replacedList = new HashSet<FreenetURI>();
-		for (FreenetURI key : list) {
-			FreenetURI replacedURI = updateEdition(key);
-			if (replacedURI != null) {
-				replacedList.add(replacedURI);
-			}
+		int sizeBefore = list.size();
+		Set<FreenetURI> copiedList = new HashSet<FreenetURI>();
+		copiedList.addAll(list);
+		list.clear();
+		for (FreenetURI key : copiedList) {
+			add(key);
 		}
-		System.out.println("Read " + list.size() + " URIs. " + replacedList.size() + " are replaced.");
-		list.removeAll(replacedList);
+		System.out.println("Read " + sizeBefore + " URIs. " + list.size() + " are kept.");
 	}
 
 	protected KeysInIndex() {
@@ -53,29 +53,28 @@ class KeysInIndex extends StoredKeys {
 		return editions.getOrDefault(zeroedURI, -1L);
 	}
 
-	FreenetURI updateEdition(FreenetURI page) {
-		FreenetURI zeroedURI = page.setSuggestedEdition(0L);
-		long edition = page.getEdition();
-		if (editions.containsKey(zeroedURI)) {
-			final long foundEdition = editions.get(zeroedURI);
-			if (edition > foundEdition) {
-				editions.put(zeroedURI, edition);
-				return zeroedURI.setSuggestedEdition(foundEdition);
-			}
-			return null;
-		}
-		editions.put(zeroedURI, edition);
-		return null;
-	}
-
+	/**
+	 * Add the page to editions or update the edition if a higher
+	 * one is found.
+	 * Also add t list and remove replaced pages from list.
+	 * @param page the page to add.
+	 * @return a FreenetURI of a page that is no longer valid
+	 */
 	public void add(FreenetURI page) {
 		try {
 			// Only USKs are considered.
 			if (page.isUSK()) {
-				FreenetURI replacedURI = updateEdition(page);
-				if (replacedURI != null) {
-					list.remove(replacedURI);
+				FreenetURI zeroedURI = page.setSuggestedEdition(0L);
+				long edition = page.getEdition();
+				if (editions.containsKey(zeroedURI)) {
+					final long foundEdition = editions.get(zeroedURI);
+					if (edition > foundEdition) {
+						list.remove(zeroedURI.setSuggestedEdition(foundEdition));
+					} else {
+					    return;
+					}
 				}
+				editions.put(zeroedURI, edition);
 				list.add(page);
 			}
 		} catch (MalformedURLException e) {
@@ -117,5 +116,9 @@ class KeysInIndex extends StoredKeys {
 	public void flush() {
 		super.flush();
 		System.out.println("Now " + list.size() + " URIs in the index.");
+	}
+
+	public static void main(String[] argv) {
+		new KeysInIndex(new File("."));
 	}
 }
