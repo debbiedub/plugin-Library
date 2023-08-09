@@ -18,6 +18,7 @@ import java.net.MalformedURLException;
 import java.nio.file.Files;
 import java.nio.file.FileAlreadyExistsException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.Formatter;
@@ -737,6 +738,7 @@ class DownloadOneEdition {
 			// queued for upload.
 			timesBelowSpaceThreshold = FREE_SPACE_LEFT_LIMIT / page.getAnyFile().getFreeSpace(); 
 			if (timesBelowSpaceThreshold > 0) {
+				logger.finest("Removing file after refetch " + page.getAnyFile());
 				page.deleteFile();
 				counterRemovedBecauseOfNotEnoughFreeSpaceLeft++;
 			}
@@ -838,7 +840,7 @@ class DownloadOneEdition {
 	}
 
 	private class CleanupOldFiles implements Runnable {
-		private final Set<File> allFiles = new HashSet<File>();
+		private final Set<File> allFiles = Collections.synchronizedSet(new HashSet<File>());
 		private ScheduledFuture<?> handle = null;
 		private int count = 1;
 
@@ -870,54 +872,64 @@ class DownloadOneEdition {
 				return;
 			}
 			File anyFile = null;
-			for (File f : allFiles) {
-				anyFile = f;
-				break;
+			synchronized(allFiles) {
+				for (File f : allFiles) {
+					anyFile = f;
+					break;
+				}
 			}
 			if (anyFile.getFreeSpace() > FREE_SPACE_LEFT_LIMIT) {
 				if (toParse.size() > 0) {
-					// Don't delete anything if the parsing is not completed.
+					logger.finest("Don't delete anything, the parsing is not completed.");
 					count = 1;
 					return;
 				}
 				if (toFetch.size() > 0) {
-					// Don't delete anything if the fetching is not completed.
+					logger.finer("Don't delete anything, the fetching is not completed.");
 					count = 1;
 					return;
 				}
 			} else {
 				count += 1;
+				logger.finer("Will delete " + count + " files since free space limit is exceeded.");
 			}
-			// Sort in oldest order.
-			SortedSet<File> toRemove = new TreeSet<File>(new Comparator<File>() {
-				@Override
-				public int compare(File o1, File o2) {
-					int l = Long.compare(o1.lastModified(), o2.lastModified());
-					if (l != 0) {
-						return l;
+			try {
+				// Sort in oldest order.
+				SortedSet<File> toRemove = new TreeSet<File>(new Comparator<File>() {
+					@Override
+					public int compare(File o1, File o2) {
+						int l = Long.compare(o1.lastModified(), o2.lastModified());
+						if (l != 0) {
+							return l;
+						}
+						return o1.getName().compareTo(o2.getName());
 					}
-					return o1.getName().compareTo(o2.getName());
+				});
+				synchronized(allFiles) {
+					for (File f : allFiles) {
+						toRemove.add(f);
+						if (toRemove.size() > count) {
+							toRemove.remove(toRemove.last());
+						}
+					}
 				}
-			});
-			for (File f : allFiles) {
-				toRemove.add(f);
-				if (toRemove.size() > count) {
-					toRemove.remove(toRemove.last());
+				for (File f : toRemove) {
+					allFiles.remove(f);
+					try {
+						unfetchables.remove(new FreenetURI(f.getName()));
+					} catch (MalformedURLException e) {
+						logger.log(Level.WARNING, "File " + f + " strange filename.", e);
+					}
+					if (f.exists()) {
+						logger.finest("Removing file " + f);
+						f.delete();
+					}
 				}
+				count += 1 + count / 7;
+			} catch (Exception e) {
+				logger.log(Level.SEVERE, "Uncaught exception", e);
+				throw e;
 			}
-			for (File f : toRemove) {
-				allFiles.remove(f);
-				try {
-					unfetchables.remove(new FreenetURI(f.getName()));
-				} catch (MalformedURLException e) {
-					logger.log(Level.WARNING, "File " + f + " strange filename.", e);
-				}
-				if (f.exists()) {
-					logger.fine("Removing file " + f);
-					f.delete();
-				}
-			}
-			count += 1 + count / 7;
 		}
 	}
 
@@ -1448,7 +1460,7 @@ class DownloadOneEdition {
 		if (directory.exists()) {
 			unfetchables.load(directory);
 			cleanUp = new CleanupOldFiles();
-			cleanUp.setHandle(FCPexecutors.scheduleWithFixedDelay(cleanUp, 500, 1, TimeUnit.MINUTES));
+			cleanUp.setHandle(FCPexecutors.scheduleWithFixedDelay(cleanUp, 5, 1, TimeUnit.MINUTES));
 		} else {
 			directory.mkdir();
 		}
