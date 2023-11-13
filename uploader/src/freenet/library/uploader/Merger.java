@@ -624,6 +624,9 @@ final public class Merger {
 				beforeFirstFilteredTerm = false;
 				if (tt.entryType() == EntryType.INFO_MESSAGE) {
 					System.out.println(termsLeftFromInputFile + " terms left from " + tt.subj);
+					if (!tt.subj.startsWith("-")) {
+						notMerged.write(new TermInfoMessageEntry("- of which " + termsLeftFromInputFile + " are left at " + new Date().toString() + "."));
+					}
 					termsLeftFromInputFile = 0;
 				} else {
 					termsLeftFromInputFile++;
