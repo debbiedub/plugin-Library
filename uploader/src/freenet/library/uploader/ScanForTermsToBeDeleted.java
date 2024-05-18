@@ -82,7 +82,7 @@ public class ScanForTermsToBeDeleted {
 	public void run() throws TaskAbortException {
 		countFilledFiles = 0;
 		int termNumber = 0;
-		boolean termOverflow = false;
+		int termOverflowCount = 0;
 		int emptyTerms = 0;
 		KeysInIndex keysInIndex = new KeysInIndex(directory);
 		BlockedKeys blockedKeys = new BlockedKeys(directory, false);
@@ -97,7 +97,7 @@ public class ScanForTermsToBeDeleted {
 			int countWrittenEntriesThisTerm = 0;
 			for (TermEntry e : set) {
 				if (countWrittenEntriesThisTerm >= MAX_ENTRIES_PER_TERM) {
-					termOverflow = true;
+					termOverflowCount++;
 					break;
 				}
 				if (e instanceof TermPageEntry) {
@@ -191,8 +191,8 @@ public class ScanForTermsToBeDeleted {
 		    System.out.println("There were " + emptyTerms +
 				       " terms without entries.");
 		}
-		if (termOverflow) {
-		    System.out.println("Some terms that were not fully deleted.");
+		if (termOverflowCount > 0) {
+		    System.out.println("" + termOverflowCount + " terms were not fully deleted.");
 		}
 	}
 
