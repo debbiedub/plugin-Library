@@ -158,16 +158,16 @@ public class ScanForTermsToBeDeleted {
 				}
 			}
 			if (set.size() == 0) {
-			    emptyTerms++;
+				emptyTerms++;
 			}
 			System.out.print("                                ");
 			System.out.print("                                ");
 			System.out.print("                                \r");
 			if (countWrittenEntriesThisTerm > 0) {
-			    System.out.println("" + termNumber + " " +
-					       term + " " +
-					       countWrittenEntriesThisTerm + "/" +
-					       set.size());
+				System.out.println("" + termNumber + " " +
+						   term + " " +
+						   countWrittenEntriesThisTerm + "/" +
+						   set.size());
 			}
 			set.deflate();
 
@@ -188,11 +188,12 @@ public class ScanForTermsToBeDeleted {
 		keysInIndex.flush();
 		System.out.println("Filled " + countFilledFiles + " files.");
 		if (emptyTerms > 0) {
-		    System.out.println("There were " + emptyTerms +
-				       " terms without entries.");
+			System.out.println("There were " + emptyTerms +
+					   " terms without entries.");
 		}
 		if (termOverflowCount > 0) {
-		    System.out.println("" + termOverflowCount + " terms were not fully deleted.");
+			System.out.println("" + termOverflowCount +
+					   " terms were not fully deleted.");
 		}
 	}
 
