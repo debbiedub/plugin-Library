@@ -889,6 +889,11 @@ class DownloadOneEdition {
 					count = 1;
 					return;
 				}
+				if (toRefetch.size() == 0) {
+					logger.finer("Don't delete anything, the fetching has not started.");
+					count = 1;
+					return;
+				}
 			} else {
 				count += 1;
 				logger.finer("Will delete " + count + " files since free space limit is exceeded.");
