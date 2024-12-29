@@ -139,18 +139,10 @@ public class ScanForTermsToBeDeleted {
 						if (blockedKeys.isBlocked(usk.setSuggestedEdition(edition + 5L))) {
 							continue;
 						}
-						if (keysInIndex.isReplaced(usk) || keysInIndex.contains(usk)) {
+						if (keysInIndex.isReplaced(usk) || keysInIndex.contains(usk) ||
+						    keysInIndex.isReplaced(usk.setMetaString(""))) {
 							// This term can be removed since there is an USK
 							// with a newer page in the index.
-							// This is a somewhat half-hearted logic. For pages
-							// not updated to many times between the SSK was
-							// entered in the index and the USK is found, this
-							// is fine.
-							// For pages updated, the SSK will start to be
-							// removed before the replacement is entirely in 
-							// the index.
-							// On the other hand, SSKs will not be maintained
-							// in the index.
 							writeTermEntry(new TermDeletePageEntry(tpe));
 							++countWrittenEntriesThisTerm;
 						}
