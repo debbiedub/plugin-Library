@@ -241,9 +241,17 @@ public class FreenetURI implements Cloneable, Serializable {
 	}
 
 	public FreenetURI setMetaString(Object object) {
-		// TODO Auto-generated method stub
+		String s = object.toString();
+
+		Matcher m = USK_PATTERN.matcher(contents);
+		if (m.matches()) {
+			try {
+				return new FreenetURI(m.group(1) + "/" + m.group(2) + "/" + m.group(3) + "/" + s);
+			} catch (MalformedURLException e) {
+				throw new RuntimeException("Malformed key " + contents + ".");
+			}
+		}
 		throw new RuntimeException("Not implemented yet.");
-		// return this;
 	}
 
 	public FreenetURI setSuggestedEdition(int i) {
