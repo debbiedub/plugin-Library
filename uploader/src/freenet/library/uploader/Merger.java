@@ -370,6 +370,12 @@ final public class Merger {
 		ifw.println(outProcessed);
 
 		// Used only for this output.
+		final String[] newSpiderFilesToMerge = getMatchingFiles(directory, "spider.index.data.");
+		final String outSpiderNew = "There is " + newSpiderFilesToMerge.length + " new files from Spider.";
+		System.out.println(outSpiderNew);
+		ifw.println(outSpiderNew);
+
+		// Used only for this output.
 		final String[] newFilesToMerge = getMatchingFiles(directory, UploaderPaths.BASE_FILENAME_PUSH_DATA);
 		final String outNew = "There is " + newFilesToMerge.length + " new files.";
 		System.out.println(outNew);
@@ -430,10 +436,13 @@ final public class Merger {
 			private int nextSelected = 0;
 			private int nextFiltered = 0;
 			private int nextProcessed = 0;
+			private int nextSpiderNew = 0;
 			private int nextNew = 0;
 			private int nextToBeDeleted = 0;
+			private String[] rescannedSpiderNewFilesToMerge = null;
 			private String[] rescannedNewFilesToMerge = null;
 			private String[] rescannedToBeDeletedFilesToMerge = null;
+			private boolean isASpiderNewFile = false;
 			private boolean isANewFile = false;
 			private boolean isAToBeDeletedFile = false;
 
@@ -462,7 +471,7 @@ final public class Merger {
 			}
 
 			boolean isANewFile() {
-				return isANewFile;
+				return isASpiderNewFile || isANewFile;
 			}
 
 			boolean isAToBeDeletedFile() {
@@ -484,6 +493,10 @@ final public class Merger {
 					return true;
 				}
 				if (doProcessed && nextProcessed < processedFilesToMerge.length) {
+					return true;
+				}
+				if (doNew && nextSpiderNew < (rescannedSpiderNewFilesToMerge = getMatchingFiles(directory, "spider.index.data.")).length) {
+					isASpiderNewFile = true;
 					return true;
 				}
 				if (doNew && nextNew < (rescannedNewFilesToMerge = getMatchingFiles(directory, UploaderPaths.BASE_FILENAME_PUSH_DATA)).length) {
@@ -511,6 +524,8 @@ final public class Merger {
 					return filteredFilesToMerge[nextFiltered++];
 				} else if (doProcessed && nextProcessed < processedFilesToMerge.length) {
 					return processedFilesToMerge[nextProcessed++];
+				} else if (doNew && nextSpiderNew < rescannedSpiderNewFilesToMerge.length) {
+					return rescannedSpiderNewFilesToMerge[nextSpiderNew++];
 				} else if (doNew && nextNew < rescannedNewFilesToMerge.length) {
 					return rescannedNewFilesToMerge[nextNew++];
 				} else if (doToBeDeleted && nextToBeDeleted < rescannedToBeDeletedFilesToMerge.length) {
