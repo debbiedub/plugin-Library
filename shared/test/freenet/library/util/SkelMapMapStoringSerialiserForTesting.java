@@ -10,11 +10,11 @@ import java.util.Map;
 import freenet.library.io.serial.MapSerialiser;
 import freenet.library.util.exec.TaskAbortException;
 
-class SkelMapMapStoringSerialiserForTest<K, V> implements MapSerialiser<K, V> {
+class SkelMapMapStoringSerialiserForTesting<K, V> implements MapSerialiser<K, V> {
 	final private Map<Long, Object> store = Collections.synchronizedMap(new HashMap<Long, Object>());
 	private NumberGenerator generator;
 
-	public SkelMapMapStoringSerialiserForTest(NumberGenerator generator) {
+	public SkelMapMapStoringSerialiserForTesting(NumberGenerator generator) {
 		this.generator = generator;
 	}
 

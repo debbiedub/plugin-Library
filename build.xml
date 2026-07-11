@@ -23,7 +23,7 @@
 	<property name="tmp" location="tmp/"/>
 	<property name="dist" location="dist/"/>
 	<property name="javadoc" location="javadoc/"/>
-	<property name="junit.location" value="/usr/share/java/junit.jar"/>
+	<property name="junit.location" value="/usr/share/java/junit4.jar"/>
 	<property name="packagebase" value="plugins.Library" />
 	<property name="minNodeVersion" value="1464"/>
 

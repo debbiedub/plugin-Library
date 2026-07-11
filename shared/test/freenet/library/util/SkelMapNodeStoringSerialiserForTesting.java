@@ -19,11 +19,11 @@ import freenet.library.util.concurrent.Executors;
 import freenet.library.util.concurrent.ObjectProcessor;
 import freenet.library.util.exec.TaskAbortException;
 
-class SkelMapNodeStoringSerialiserForTest<K, V> implements IterableSerialiser<SkeletonBTreeMap<K, V>.SkeletonNode>,
+class SkelMapNodeStoringSerialiserForTesting<K, V> implements IterableSerialiser<SkeletonBTreeMap<K, V>.SkeletonNode>,
 		ScheduledSerialiser<SkeletonBTreeMap<K, V>.SkeletonNode> {
 
 	final private Map<Long, Object> store = Collections.synchronizedMap(new HashMap<Long, Object>());
-	SkelMapMapStoringSerialiserForTest<K, V> mapSerialiser;
+	SkelMapMapStoringSerialiserForTesting<K, V> mapSerialiser;
 
 	Translator<SkeletonBTreeMap<K, V>, Map<String, Object>> ttrans = new SkeletonBTreeMap.TreeTranslator<K, V>(null,
 			null);
@@ -45,7 +45,7 @@ class SkelMapNodeStoringSerialiserForTest<K, V> implements IterableSerialiser<Sk
 		}
 	};
 
-	SkelMapNodeStoringSerialiserForTest(SkeletonBTreeMap<K, V> skelmap, SkelMapMapStoringSerialiserForTest<K, V> ms,
+	SkelMapNodeStoringSerialiserForTesting(SkeletonBTreeMap<K, V> skelmap, SkelMapMapStoringSerialiserForTesting<K, V> ms,
 			NumberGenerator generator) {
 		mapSerialiser = ms;
 		ntrans = skelmap.makeNodeTranslator(null, tmtrans);

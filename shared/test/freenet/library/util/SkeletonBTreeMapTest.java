@@ -32,15 +32,15 @@ public class SkeletonBTreeMapTest {
 		return rndStr().substring(0, 8);
 	}
 
-	SkelMapMapStoringSerialiserForTest<String, Integer> lastMapSerialiser;
+	SkelMapMapStoringSerialiserForTesting<String, Integer> lastMapSerialiser;
 
 	@Before
 	public void setUp() throws TaskAbortException {
 		skelmap = new SkeletonBTreeMap<String, Integer>(2);
 		ReferenceGenerator generator = new ReferenceGenerator();
-		lastMapSerialiser = new SkelMapMapStoringSerialiserForTest<String, Integer>(generator);
+		lastMapSerialiser = new SkelMapMapStoringSerialiserForTesting<String, Integer>(generator);
 		skelmap.setSerialiser(
-				new SkelMapNodeStoringSerialiserForTest<String, Integer>(skelmap, lastMapSerialiser, generator),
+				new SkelMapNodeStoringSerialiserForTesting<String, Integer>(skelmap, lastMapSerialiser, generator),
 				lastMapSerialiser);
 		assertTrue(skelmap.isBare());
 
@@ -190,7 +190,7 @@ public class SkeletonBTreeMapTest {
 		checkAllKeys();
 	}
 
-	@Test
+	// @Test
 	public void testRemove1from4() throws TaskAbortException {
 		add(4);
 

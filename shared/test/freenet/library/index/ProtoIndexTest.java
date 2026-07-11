@@ -447,7 +447,7 @@ public class ProtoIndexTest {
 	@Test
 	public void testRemoveLastMemberInSet() throws TaskAbortException, MalformedURLException {
 		final SkeletonBTreeSet<TermEntry> value = new SkeletonBTreeSet<TermEntry>(100);
-		TermPageEntry entry = new TermPageEntry("a", 1, new FreenetURI("CHK@1,2,A3"), "title", null);
+		final TermPageEntry entry = new TermPageEntry("a", 1, new FreenetURI("CHK@1,2,A3"), "title", null);
 		value.add(entry);
 		leafsrl.setSerialiserFor(value);
 		value.deflate();
