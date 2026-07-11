@@ -209,9 +209,14 @@ final public class Merger {
 			String[] dirsToMerge = null;
 			File directory = new File(".");
 			boolean scanForDeletions = false;
+			boolean forceCreateUSK = false;
 			for (String arg : argv) {
 				if ("--scan-for-deletions".equals(arg)) {
 					scanForDeletions = true;
+					continue;
+				}
+				if ("--force-create-usk".equals(arg)) {
+					forceCreateUSK = true;
 					continue;
 				}
 				if (new File(directory, arg).isDirectory()) {
@@ -246,7 +251,7 @@ final public class Merger {
 				FactoryRegister.register(UploaderLibrary.getInstance());
 
 				File directoryToMerge = new File(directory, dirsToMerge[0]);
-				new DirectoryUploader(connection, directoryToMerge, false).run();
+				new DirectoryUploader(connection, directoryToMerge, forceCreateUSK).run();
 				System.out.println("Upload completed.");
 				return;
 			}
