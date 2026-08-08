@@ -1461,44 +1461,49 @@ class DownloadOneEdition {
 		morePagesDirectory = morePagesDir;
 		FCPexecutors = Executors.newScheduledThreadPool(numThreads);
 		otherExecutors = Executors.newScheduledThreadPool(1);
-		directory = new File("library-download-all-once-db");
-		if (directory.exists()) {
-			unfetchables.load(directory);
-			cleanUp = new CleanupOldFiles();
-			cleanUp.setHandle(FCPexecutors.scheduleWithFixedDelay(cleanUp, 5, 1, TimeUnit.MINUTES));
-		} else {
-			directory.mkdir();
-		}
+		try {
+			directory = new File("library-download-all-once-db");
+			if (directory.exists()) {
+				unfetchables.load(directory);
+				cleanUp = new CleanupOldFiles();
+				cleanUp.setHandle(FCPexecutors.scheduleWithFixedDelay(cleanUp, 5, 1, TimeUnit.MINUTES));
+			} else {
+				directory.mkdir();
+			}
 
-		final ParseQueues pq = new ParseQueues();
-		otherExecutors.execute(pq);
-		final QueueQueues qq = new QueueQueues();
-		otherExecutors.scheduleWithFixedDelay(new Runnable() {
-			public void run() {
-				logStatistics();
-				logger.log(Level.INFO, "Parse time: {0} Fetch time: {1} Upload time: {2}",
-						new Object[] {
-								pq.getMean(), qq.getFetchMean(), qq.getUploadMean()
-						});
+			final ParseQueues pq = new ParseQueues();
+			otherExecutors.execute(pq);
+			final QueueQueues qq = new QueueQueues();
+			otherExecutors.scheduleWithFixedDelay(new Runnable() {
+				public void run() {
+					logStatistics();
+					logger.log(Level.INFO, "Parse time: {0} Fetch time: {1} Upload time: {2}",
+							new Object[] {
+									pq.getMean(), qq.getFetchMean(), qq.getUploadMean()
+							});
+				}
+			}, 1, 1, TimeUnit.MINUTES);
+			FCPexecutors.schedule(qq, 2, TimeUnit.SECONDS);
+			FCPexecutors.scheduleWithFixedDelay(new Runnable() {
+				public void run() {
+					unfetchables.save(toUploadUnfetchable, toFetchUnfetchable);
+				}
+			}, 100, 20, TimeUnit.MINUTES);
+			FcpSession session;
+			try {
+				session = new FcpSession("DownloadOneEditionFor" + u);
+			} catch (IllegalStateException | IOException e1) {
+				logger.log(Level.SEVERE, "Exception", e1);
+				return;
 			}
-		}, 1, 1, TimeUnit.MINUTES);
-		FCPexecutors.schedule(qq, 2, TimeUnit.SECONDS);
-		FCPexecutors.scheduleWithFixedDelay(new Runnable() {
-			public void run() {
-				unfetchables.save(toUploadUnfetchable, toFetchUnfetchable);
+			try {
+				startAndBlockUntilUpdate(session, u);
+			} finally {
+				shutdown(session);
 			}
-		}, 100, 20, TimeUnit.MINUTES);
-		FcpSession session;
-		try {
-			session = new FcpSession("DownloadOneEditionFor" + u);
-		} catch (IllegalStateException | IOException e1) {
-			logger.log(Level.SEVERE, "Exception", e1);
-			return;
-		}
-		try {
-			startAndBlockUntilUpdate(session, u);
 		} finally {
-			shutdown(session);
+			FCPexecutors.shutdown();
+			otherExecutors.shutdown();
 		}
 	}
 
