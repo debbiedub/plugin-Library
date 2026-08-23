@@ -90,7 +90,7 @@ public class ScanForTermsToBeDeleted {
 				i.hasNext();) {
 			termNumber++;
 			String term = i.next();
-			System.out.print("" + termNumber + " " + term + "\r");
+			// System.out.print("" + termNumber + " " + term + "\r");
 			idxFreenet.ttab.inflate(term);
 			SkeletonBTreeSet<TermEntry> set = idxFreenet.ttab.get(term);
 			set.inflate();
@@ -152,9 +152,9 @@ public class ScanForTermsToBeDeleted {
 			if (set.size() == 0) {
 				emptyTerms++;
 			}
-			System.out.print("                                ");
-			System.out.print("                                ");
-			System.out.print("                                \r");
+			// System.out.print("                                ");
+			// System.out.print("                                ");
+			// System.out.print("                                \r");
 			if (countWrittenEntriesThisTerm > 0) {
 				System.out.println("" + termNumber + " " +
 						   term + " " +
