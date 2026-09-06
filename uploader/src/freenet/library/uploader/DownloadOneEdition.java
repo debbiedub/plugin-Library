@@ -1502,8 +1502,12 @@ class DownloadOneEdition {
 				shutdown(session);
 			}
 		} finally {
-			FCPexecutors.shutdown();
-			otherExecutors.shutdown();
+			if (FCPexecutors != null) {
+				FCPexecutors.shutdown();
+			}
+			if (otherExecutors != null) {
+				otherExecutors.shutdown();
+			}
 		}
 	}
 
